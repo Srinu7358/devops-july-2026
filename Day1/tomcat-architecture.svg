@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="620" viewBox="0 0 900 620" role="img">
+  <title>Apache Tomcat High-Level Architecture</title>
+  <desc>Nested Tomcat containers: Server holds a Service, which binds Connectors to an Engine that contains Hosts and Contexts.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#12202e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="620" fill="#ffffff"/>
+
+  <text x="40" y="42" font-family="DejaVu Sans, Arial, sans-serif" font-size="22" font-weight="bold" fill="#12202e">Apache Tomcat High-Level Architecture</text>
+  <text x="40" y="66" font-family="DejaVu Sans, Arial, sans-serif" font-size="13" fill="#55606e">The container hierarchy, as defined in conf/server.xml</text>
+  <line x1="40" y1="80" x2="860" y2="80" stroke="#0d5c63" stroke-width="3"/>
+
+  <!-- SERVER -->
+  <rect x="40" y="104" width="820" height="480" rx="18" fill="#f1efe8" stroke="#5f5e5a" stroke-width="1"/>
+  <text x="64" y="134" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="bold" fill="#2c2c2a">Server</text>
+  <text x="130" y="134" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#5f5e5a">the whole Tomcat instance (JVM), shutdown port 8005</text>
+
+  <!-- SERVICE -->
+  <rect x="66" y="152" width="768" height="408" rx="16" fill="#e6f1fb" stroke="#185fa5" stroke-width="1"/>
+  <text x="90" y="182" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="bold" fill="#0c447c">Service</text>
+  <text x="158" y="182" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#185fa5">binds one or more connectors to a single engine</text>
+
+  <!-- CONNECTORS -->
+  <rect x="92" y="204" width="200" height="180" rx="12" fill="#e1f5ee" stroke="#0f6e56" stroke-width="1"/>
+  <text x="192" y="234" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="bold" fill="#085041">Connectors</text>
+  <text x="192" y="258" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#0f6e56">accept client connections</text>
+  <line x1="112" y1="272" x2="272" y2="272" stroke="#5dcaa5" stroke-width="1"/>
+  <text x="192" y="296" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#0f6e56">HTTP/1.1 &#8212; port 8080</text>
+  <text x="192" y="320" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#0f6e56">HTTP/2</text>
+  <text x="192" y="344" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#0f6e56">AJP/1.3 &#8212; port 8009</text>
+  <text x="192" y="368" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="11" fill="#1d9e75">owns the thread pool</text>
+
+  <!-- arrow connector -> engine -->
+  <line x1="292" y1="294" x2="336" y2="294" stroke="#12202e" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ENGINE -->
+  <rect x="340" y="204" width="470" height="330" rx="14" fill="#eeedfe" stroke="#534ab7" stroke-width="1"/>
+  <text x="364" y="234" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="bold" fill="#26215c">Engine</text>
+  <text x="426" y="234" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#534ab7">the request-processing pipeline</text>
+
+  <!-- HOST -->
+  <rect x="364" y="252" width="422" height="262" rx="12" fill="#faece7" stroke="#993c1d" stroke-width="1"/>
+  <text x="388" y="282" font-family="DejaVu Sans, Arial, sans-serif" font-size="15" font-weight="bold" fill="#712b13">Host</text>
+  <text x="436" y="282" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#993c1d">a virtual host, e.g. www.tektutor.org</text>
+
+  <!-- CONTEXT 1 -->
+  <rect x="388" y="302" width="374" height="94" rx="10" fill="#faeeda" stroke="#854f0b" stroke-width="1"/>
+  <text x="575" y="332" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="bold" fill="#633806">Context: /myapp</text>
+  <text x="575" y="356" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#854f0b">one deployed web application (WAR)</text>
+  <text x="575" y="378" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="11" fill="#ba7517">holds Wrappers, one per servlet</text>
+
+  <!-- CONTEXT 2 -->
+  <rect x="388" y="408" width="374" height="94" rx="10" fill="#faeeda" stroke="#854f0b" stroke-width="1"/>
+  <text x="575" y="438" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="14" font-weight="bold" fill="#633806">Context: /shop</text>
+  <text x="575" y="462" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="12" fill="#854f0b">one deployed web application (WAR)</text>
+  <text x="575" y="484" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="11" fill="#ba7517">isolated class loader per context</text>
+
+  <!-- footer note -->
+  <text x="40" y="606" font-family="DejaVu Sans, Arial, sans-serif" font-size="11" fill="#7a8594">Request path: Connector accepts &#8594; Engine routes &#8594; Host matches the hostname &#8594; Context matches the URL path &#8594; your servlet runs.</text>
+</svg>
