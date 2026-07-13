@@ -310,7 +310,7 @@ sudo cat /opt/tomcat10/bin/setenv.sh
 
 Change the port so it doesn't conflict with tomcat9
 ```
-# Edit sudo vim /opt/tomcat10/conf/server.xml
+sudo vim /opt/tomcat10/conf/server.xml
 # Change the shutdown port from 8005 to 8006
 # Change the HTTP connector port from 8080 to 8090
 # If AJP port is uncommented from 8009 to 8010
