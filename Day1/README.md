@@ -1,5 +1,10 @@
 # Day 1
 
+## URLs for Feed and pre-test links - Access from RPS Cloud Lab machine
+<pre>
+https://notepad.pw/DevOps13
+</pre>  
+
 ## Info - Servlet Overview
 <pre>
 - A Servlet class is a Java class that handles HTTP requests
