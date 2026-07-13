@@ -275,6 +275,11 @@ curl "http://localhost:8080/hello-tomcat-servlet/hello?name=Jegan"
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/de2211a2-441c-4a13-a78b-fc8d3e999748" />
 
+## Lab - Install gedit editor ( use this in the place of vim editor - this works like Windows notepad )
+```
+sudo apt update && sudo apt install -y gedit
+```
+
 ## Lab - Install Tomcat 10 in Ubuntu
 In the Linux Terminal, type the below commands
 ```
