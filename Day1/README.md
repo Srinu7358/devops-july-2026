@@ -94,6 +94,98 @@ temp and work
 - one operational detail worth noting
   - if you run Tomcat under a dedicated tomcat user
   - set file ownership correctly on the install directory
-  - wrong ownership causes setenv.sh to be skipped silently and CATALINS_OPS shows up blank at
+  - wrong ownership causes setenv.sh to be skipped silently and CATALINS_OPTS shows up blank at
   ownership correctly on the install directory
 </pre>
+
+## Lab - Install Tomcat9 in Ubuntu 
+```
+sudo apt update
+sudo apt install -y openjdk-17-jdk
+java -version
+javac -version
+```
+
+Create a dedicated folder for Tomcat9
+```
+sudo mkdir -p /opt/tomcat9
+sudo useradd -r -m -U -d /opt/tomcat9 -s /bin/false tomcat
+```
+
+Download and Install Tomcat9
+```
+cd /tmp
+wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.120/bin/apache-tomcat-9.0.120.tar.gz
+sudo tar -xzf apache-tomcat-9.0.120.tar.gz -C /opt/tomcat9 --strip-Components=1
+```
+
+Change ownership of /opt/tomcat9 folder to tomcat user
+```
+sudo chown -R tomcat:tomcat /opt/tomcat9
+sudo chmod -R u+x /opt/tomcat9/bin
+```
+
+Configure the JVM settings
+```
+sudo tee /opt/tomcat9/bin/setenv.sh > /dev/null <<'EOF'
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export CATALINA_OPTS="-Xms512m -Xmx1024m"
+EOF
+
+sudo chown tomcat:tomcat /opt/tomcat9/bin/setenv.sh
+sudo chmod +x /opt/tomcat9/bin/setup.sh
+```
+
+Run Tomcat9 as a linux service
+```
+sudo tee /etc/systemd/system/tomcat9.service > /dev/null << 'EOF'
+[Unit]
+Description=Apache Tomcat 9
+After=network.target
+
+[Service]
+Type=forking
+
+User=tomcat
+Group=tomcat
+
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+Environment="CATALINA_HOME=/opt/tomcat9"
+Environment="CATALINA_BASE=/opt/tomcat9"
+Environment="CATALINA_PID=/opt/tomcat9/temp/tomcat.pid"
+
+ExecStart=/opt/tomcat9/bin/startup.sh
+ExecStop=/opt/tomcat9/bin/shutdown.sh
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Start the service
+```
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat9
+sudo systemctl start tomcat9
+sudo systemctl status tomcat9
+```
+
+Test
+```
+curl http://localhost:8080
+```
+
+Watch live log
+```
+sudo tail -f /opt/tomcat9/logs/catalina.out
+```
+
+Deploy out servlet
+```
+```
+
+Test our custom application
+```
+```
