@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.tektutor</groupId>
+    <artifactId>hello-tomcat10</artifactId>
+    <version>1.0.0</version>
+    <packaging>war</packaging>
+
+    <name>hello-tomcat10</name>
+    <description>Servlet with an injected CDI bean, targeting Tomcat 9 (javax)</description>
+
+    <properties>
+        <maven.compiler.release>11</maven.compiler.release>
+	<maven.compiler.source>11</maven.compiler.source>
+	<maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <servlet.api.version>6.0</servlet.api.version>
+        <weld.version>6.0.4.Final</weld.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- Servlet 6.0 API, javax namespace. Provided by Tomcat 10 at runtime. -->
+	<dependency>
+	    <groupId>jakarta.servlet</groupId>
+	    <artifactId>jakarta.servlet-api</artifactId>
+	    <version>6.0.0</version>
+	    <scope>provided</scope>
+	</dependency>
+        <!-- Weld 3.x, the javax line of the CDI reference implementation.
+             Ships in WEB-INF/lib because Tomcat has no CDI engine. -->
+        <dependency>
+            <groupId>org.jboss.weld.servlet</groupId>
+            <artifactId>weld-servlet-shaded</artifactId>
+            <version>${weld.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <finalName>hello-tomcat-servlet</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

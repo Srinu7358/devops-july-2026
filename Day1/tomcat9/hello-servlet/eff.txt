@@ -1,0 +1,668 @@
+[[1;34mINFO[m] Scanning for projects...
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m---------------------< [0;36morg.tektutor:hello-tomcat9[0;1m >---------------------[m
+[[1;34mINFO[m] [1mBuilding hello-tomcat9 1.0.0[m
+[[1;34mINFO[m]   from pom.xml
+[[1;34mINFO[m] [1m--------------------------------[ war ]---------------------------------[m
+[[1;34mINFO[m] 
+[[1;34mINFO[m] [1m--- [0;32mhelp:3.5.2:describe[m [1m(default-cli)[m @ [36mhello-tomcat9[0;1m ---[m
+[[1;34mINFO[m] org.apache.maven.plugins:maven-compiler-plugin:3.13.0
+
+Name: [1mApache Maven Compiler Plugin[m
+Description: The Compiler Plugin is used to compile the sources of your
+  project.
+Group Id: org.apache.maven.plugins
+Artifact Id: maven-compiler-plugin
+Version: 3.13.0
+Goal Prefix: [1mcompiler[m
+
+This plugin has 3 goals:
+
+[1mcompiler:compile[m
+  Description: Compiles application sources. By default uses the javac
+    compiler of the JDK used to execute Maven. This can be overwritten through
+    Toolchains or parameter compilerId. See also: javac Command
+  Implementation: org.apache.maven.plugin.compiler.CompilerMojo
+  Language: java
+  Bound to phase: compile
+
+  Available parameters:
+
+    [1mannotationProcessorPaths[m
+      Classpath elements to supply as annotation processor path. If specified,
+      the compiler will detect annotation processors only in those classpath
+      elements. If omitted, the default classpath is used to detect annotation
+      processors. The detection itself depends on the configuration of
+      annotationProcessors. Each classpath element is specified using their
+      Maven coordinates (groupId, artifactId, version, classifier, type).
+      Transitive dependencies are added automatically. Exclusions are supported
+      as well. Example: org.sample sample-annotation-processor 1.2.3 org.sample
+      sample-dependency Note: Exclusions are supported from version 3.11.0. See
+      also: javac -processorpath , javac Annotation Processing
+
+    [1mannotationProcessorPathsUseDepMgmt[m (Default: [1mfalse[m)
+      Whether to use the Maven dependency management section when resolving
+      transitive dependencies of annotation processor paths. This flag does not
+      enable / disable the ability to resolve the version of annotation
+      processor paths from dependency management section. It only influences
+      the resolution of transitive dependencies of those top-level paths.
+
+    [1mannotationProcessors[m
+      Names of annotation processors to run. Only applies to JDK 1.6+ If not
+      set, the default annotation processors discovery process applies. See
+      also: javac -processor , javac Annotation Processing
+
+    [1mcompilerArgs[m
+      Sets the arguments to be passed to the compiler. Note that -J options are
+      only passed through if fork is set to true. Example: -Xmaxerrs 1000
+      -Xlint -J-Duser.language=en_us See also: javac -J
+
+    [1mcompilerArgument[m
+      Sets the unformatted single argument string to be passed to the compiler.
+      To pass multiple arguments such as -Xmaxerrs 1000 (which are actually two
+      arguments) you have to use compilerArgs. This is because the list of
+      valid arguments passed to a Java compiler varies based on the compiler
+      version. Note that -J options are only passed through if fork is set to
+      true. See also: javac -J
+
+    [1mcompilerArguments[m
+      Sets the arguments to be passed to the compiler (prepending a dash). This
+      is because the list of valid arguments passed to a Java compiler varies
+      based on the compiler version. Note that -J options are only passed
+      through if fork is set to true. To pass -Xmaxerrs 1000 -Xlint
+      -Xlint:-path -Averbose=true you should include the following: 1000 true
+      [1;33mDeprecated. use compilerArgs instead.[m
+
+    [1mcompilerId[m (Default: [1mjavac[m)
+      User property: maven.compiler.compilerId
+      The compiler id of the compiler to use. See this guide for more
+      information.
+
+    [1mcompilerReuseStrategy[m (Default: [1m${reuseCreated}[m)
+      User property: maven.compiler.compilerReuseStrategy
+      Strategy to re use javacc class created: * reuseCreated (default): will
+      reuse already created but in case of multi-threaded builds, each thread
+      will have its own instance * reuseSame: the same Javacc class will be
+      used for each compilation even for multi-threaded build * alwaysNew: a
+      new Javacc class will be created for each compilation Note this parameter
+      value depends on the os/jdk you are using, but the default value should
+      work on most of env.
+
+    [1mcompilerVersion[m
+      User property: maven.compiler.compilerVersion
+      Version of the compiler to use, ex. "1.3", "1.5", if fork is set to true.
+      [1;33mDeprecated. This parameter is no longer evaluated by the
+      underlying compilers, instead the actual version of the javac binary is
+      automatically retrieved.[m
+
+    [1mcompileSourceRoots[m (Default: [1m${project.compileSourceRoots}[m)
+      Required: true
+      The source directories containing the sources to be compiled.
+
+    [1mcreateMissingPackageInfoClass[m (Default: [1mtrue[m)
+      User property: maven.compiler.createMissingPackageInfoClass
+      Package info source files that only contain javadoc and no annotation on
+      the package can lead to no class file being generated by the compiler.
+      This causes a file miss on the next compilations and forces an
+      unnecessary recompilation. The default value of true causes an empty
+      class file to be generated. This behavior can be changed by setting this
+      parameter to false.
+
+    [1mdebug[m (Default: [1mtrue[m)
+      User property: maven.compiler.debug
+      Set to true to include debugging information in the compiled class files.
+      See also: javac -g , debuglevel
+
+    [1mdebugFileName[m (Default: [1mjavac[m)
+      When both fork and debug are enabled the commandline arguments used will
+      be dumped to this file.
+
+    [1mdebuglevel[m
+      User property: maven.compiler.debuglevel
+      Keyword list to be appended to the -g command-line switch. Legal values
+      are none or a comma-separated list of the following keywords: lines,
+      vars, and source. If debug level is not specified, by default, nothing
+      will be appended to -g. If debug is not turned on, this attribute will be
+      ignored. See also: javac -G:[lines,vars,source]
+
+    [1menablePreview[m (Default: [1mfalse[m)
+      User property: maven.compiler.enablePreview
+      Set to true to enable preview language features of the java compiler See
+      also: javac --enable-preview
+
+    [1mencoding[m (Default: [1m${project.build.sourceEncoding}[m)
+      User property: encoding
+      The -encoding argument for the Java compiler. See also: javac -encoding
+
+    [1mexcludes[m
+      A list of exclusion filters for the compiler.
+
+    [1mexecutable[m
+      User property: maven.compiler.executable
+      Sets the executable of the compiler to use when fork is true.
+
+    [1mfailOnError[m (Default: [1mtrue[m)
+      User property: maven.compiler.failOnError
+      Indicates whether the build will continue even if there are compilation
+      errors.
+
+    [1mfailOnWarning[m (Default: [1mfalse[m)
+      User property: maven.compiler.failOnWarning
+      Indicates whether the build will continue even if there are compilation
+      warnings.
+
+    [1mfileExtensions[m (Default: [1mclass,jar[m)
+      File extensions to check timestamp for incremental build.
+
+    [1mforceJavacCompilerUse[m (Default: [1mfalse[m)
+      User property: maven.compiler.forceJavacCompilerUse
+      Legacy parameter name of forceLegacyJavacApi. Only considered if
+      forceLegacyJavacApi is not set or false.
+      [1;33mDeprecated. Use forceLegacyJavacApi instead[m
+
+    [1mforceLegacyJavacApi[m (Default: [1mfalse[m)
+      User property: maven.compiler.forceLegacyJavacApi
+      The underlying compiler now uses javax.tools API if available in your
+      current JDK. Set this to true to always use the legacy
+      com.sun.tools.javac API instead. This only has an effect for compilerId
+      being javac and fork being false.
+
+    [1mfork[m (Default: [1mfalse[m)
+      User property: maven.compiler.fork
+      Allows running the compiler in a separate process. If false it uses the
+      built in compiler, while if true it will use an executable.
+
+    [1mgeneratedSourcesDirectory[m (Default:
+    [1m${project.build.directory}/generated-sources/annotations[m)
+      Specify where to place generated source files created by annotation
+      processing. Only applies to JDK 1.6+
+
+    [1mimplicit[m
+      User property: maven.compiler.implicit
+      Keyword to be appended to the -implicit: command-line switch. See also:
+      javac -implicit
+
+    [1mincludes[m
+      A list of inclusion filters for the compiler.
+
+    [1mincrementalExcludes[m
+      A list of exclusion filters for the incremental calculation.
+
+    [1mjdkToolchain[m
+      Specify the requirements for this jdk toolchain for using a different
+      javac than the one of the JRE used by Maven. This overrules the toolchain
+      selected by the maven-toolchain-plugin . (see Guide to Toolchains for
+      more info) 11 ... 1.8 zulu ... note: requires at least Maven 3.3.1
+
+    [1mmaxmem[m
+      User property: maven.compiler.maxmem
+      Sets the maximum size, in megabytes, of the memory allocation pool, ex.
+      "128", "128m" if fork is set to true.
+
+    [1mmeminitial[m
+      User property: maven.compiler.meminitial
+      Initial size, in megabytes, of the memory allocation pool, ex. "64",
+      "64m" if fork is set to true.
+
+    [1mmultiReleaseOutput[m
+      When set to true, the classes will be placed in
+      META-INF/versions/${release} The release value must be set, otherwise the
+      plugin will fail. Note: A jar is only a multirelease jar if
+      META-INF/MANIFEST.MF contains Multi-Release: true. You need to set this
+      by configuring the maven-jar-plugin . This implies that you cannot test a
+      multirelease jar using the outputDirectory.
+
+    [1moptimize[m (Default: [1mfalse[m)
+      User property: maven.compiler.optimize
+      Set to true to optimize the compiled code using the compiler's
+      optimization methods.
+      [1;33mDeprecated. This property is a no-op in javac.[m
+
+    [1moutputDirectory[m (Default: [1m${project.build.outputDirectory}[m)
+      Required: true
+      User property: maven.compiler.outputDirectory
+      The directory for compiled classes. This parameter should only be
+      modified in special cases. One example is creating a multi-release jar
+      with a lower bytecode level (i.e. setting it to
+      ${project.build.outputDirectory/META-INF/versions/21} or similar) in an
+      additional execution. When the required bytecode level is available
+      though an installed JDK or toolchain, it is recommended to use the
+      property in conjunction with the ${multiReleaseOutput} parameter instead.
+
+    [1moutputFileName[m
+      Sets the name of the output file when compiling a set of sources to a
+      single file. expression="${project.build.finalName}"
+
+    [1moutputTimestamp[m (Default: [1m${project.build.outputTimestamp}[m)
+      Timestamp for reproducible output archive entries, either formatted as
+      ISO 8601 yyyy-MM-dd'T'HH:mm:ssXXX or as an int representing seconds since
+      the epoch (like SOURCE_DATE_EPOCH ).
+
+    [1mparameters[m (Default: [1mfalse[m)
+      User property: maven.compiler.parameters
+      Set to true to generate metadata for reflection on method parameters. See
+      also: javac -parameters
+
+    [1mproc[m
+      User property: maven.compiler.proc
+      Sets whether annotation processing is performed or not. Only applies to
+      JDK 1.6+ If not set, both compilation and annotation processing are
+      performed at the same time. Allowed values are: * none - no annotation
+      processing is performed. * only - only annotation processing is done, no
+      compilation. * full - annotation processing and compilation. full is the
+      default. Starting with JDK 21, this option must be set explicitly. See
+      also: javac -proc , javac Annotation Processing
+
+    [1mrelease[m
+      User property: maven.compiler.release
+      The -release argument for the Java compiler, supported since Java9 See
+      also: javac -release
+
+    [1mshowCompilationChanges[m (Default: [1mfalse[m)
+      User property: maven.compiler.showCompilationChanges
+      (no description available)
+
+    [1mshowDeprecation[m (Default: [1mfalse[m)
+      User property: maven.compiler.showDeprecation
+      Sets whether to show source locations where deprecated APIs are used.
+
+    [1mshowWarnings[m (Default: [1mtrue[m)
+      User property: maven.compiler.showWarnings
+      Set to false to disable warnings during compilation.
+
+    [1mskipMain[m
+      User property: maven.main.skip
+      Set this to true to bypass compilation of main sources. Its use is NOT
+      RECOMMENDED, but quite convenient on occasion.
+
+    [1mskipMultiThreadWarning[m (Default: [1mfalse[m)
+      User property: maven.compiler.skipMultiThreadWarning
+      (no description available)
+
+    [1msource[m (Default: [1m1.8[m)
+      User property: maven.compiler.source
+      The -source argument for the Java compiler. NOTE: Since 3.8.0 the default
+      value has changed from 1.5 to 1.6 Since 3.9.0 the default value has
+      changed from 1.6 to 1.7 Since 3.11.0 the default value has changed from
+      1.7 to 1.8 See also: javac -source
+
+    [1mstaleMillis[m (Default: [1m0[m)
+      User property: lastModGranularityMs
+      Sets the granularity in milliseconds of the last modification date for
+      testing whether a source needs recompilation.
+
+    [1mtarget[m (Default: [1m1.8[m)
+      User property: maven.compiler.target
+      The -target argument for the Java compiler. NOTE: Since 3.8.0 the default
+      value has changed from 1.5 to 1.6 Since 3.9.0 the default value has
+      changed from 1.6 to 1.7 Since 3.11.0 the default value has changed from
+      1.7 to 1.8 See also: javac -target
+
+    [1museIncrementalCompilation[m (Default: [1mtrue[m)
+      User property: maven.compiler.useIncrementalCompilation
+      to enable/disable incremental compilation feature. This leads to two
+      different modes depending on the underlying compiler. The default javac
+      compiler does the following: * true (default) in this mode the compiler
+      plugin determines whether any JAR files the current module depends on
+      have changed in the current build run; or any source file was added,
+      removed or changed since the last compilation. If this is the case, the
+      compiler plugin recompiles all sources. * false (not recommended) this
+      only compiles source files which are newer than their corresponding class
+      files, namely which have changed since the last compilation. This does
+      not recompile other classes which use the changed class, potentially
+      leaving them with references to methods that no longer exist, leading to
+      errors at runtime.
+
+    [1mverbose[m (Default: [1mfalse[m)
+      User property: maven.compiler.verbose
+      Set to true to show messages about what the compiler is doing. See also:
+      javac -verbose
+
+[1mcompiler:help[m
+  Description: Display help information on maven-compiler-plugin. Call mvn
+    compiler:help -Ddetail=true -Dgoal= to display parameter details.
+  Implementation: org.apache.maven.plugins.maven_compiler_plugin.HelpMojo
+  Language: java
+
+  Available parameters:
+
+    [1mdetail[m (Default: [1mfalse[m)
+      User property: detail
+      If true, display all settable properties for each goal.
+
+    [1mgoal[m
+      User property: goal
+      The name of the goal for which to show help. If unspecified, all goals
+      will be displayed.
+
+    [1mindentSize[m (Default: [1m2[m)
+      User property: indentSize
+      The number of spaces per indentation level, should be positive.
+
+    [1mlineLength[m (Default: [1m80[m)
+      User property: lineLength
+      The maximum length of a display line, should be positive.
+
+[1mcompiler:testCompile[m
+  Description: Compiles application test sources. By default uses the javac
+    compiler of the JDK used to execute Maven. This can be overwritten through
+    Toolchains or parameter compilerId. See also: javac Command
+  Implementation: org.apache.maven.plugin.compiler.TestCompilerMojo
+  Language: java
+  Bound to phase: test-compile
+
+  Available parameters:
+
+    [1mannotationProcessorPaths[m
+      Classpath elements to supply as annotation processor path. If specified,
+      the compiler will detect annotation processors only in those classpath
+      elements. If omitted, the default classpath is used to detect annotation
+      processors. The detection itself depends on the configuration of
+      annotationProcessors. Each classpath element is specified using their
+      Maven coordinates (groupId, artifactId, version, classifier, type).
+      Transitive dependencies are added automatically. Exclusions are supported
+      as well. Example: org.sample sample-annotation-processor 1.2.3 org.sample
+      sample-dependency Note: Exclusions are supported from version 3.11.0. See
+      also: javac -processorpath , javac Annotation Processing
+
+    [1mannotationProcessorPathsUseDepMgmt[m (Default: [1mfalse[m)
+      Whether to use the Maven dependency management section when resolving
+      transitive dependencies of annotation processor paths. This flag does not
+      enable / disable the ability to resolve the version of annotation
+      processor paths from dependency management section. It only influences
+      the resolution of transitive dependencies of those top-level paths.
+
+    [1mannotationProcessors[m
+      Names of annotation processors to run. Only applies to JDK 1.6+ If not
+      set, the default annotation processors discovery process applies. See
+      also: javac -processor , javac Annotation Processing
+
+    [1mcompilerArgs[m
+      Sets the arguments to be passed to the compiler. Note that -J options are
+      only passed through if fork is set to true. Example: -Xmaxerrs 1000
+      -Xlint -J-Duser.language=en_us See also: javac -J
+
+    [1mcompilerArgument[m
+      Sets the unformatted single argument string to be passed to the compiler.
+      To pass multiple arguments such as -Xmaxerrs 1000 (which are actually two
+      arguments) you have to use compilerArgs. This is because the list of
+      valid arguments passed to a Java compiler varies based on the compiler
+      version. Note that -J options are only passed through if fork is set to
+      true. See also: javac -J
+
+    [1mcompilerArguments[m
+      Sets the arguments to be passed to the compiler (prepending a dash). This
+      is because the list of valid arguments passed to a Java compiler varies
+      based on the compiler version. Note that -J options are only passed
+      through if fork is set to true. To pass -Xmaxerrs 1000 -Xlint
+      -Xlint:-path -Averbose=true you should include the following: 1000 true
+      [1;33mDeprecated. use compilerArgs instead.[m
+
+    [1mcompilerId[m (Default: [1mjavac[m)
+      User property: maven.compiler.compilerId
+      The compiler id of the compiler to use. See this guide for more
+      information.
+
+    [1mcompilerReuseStrategy[m (Default: [1m${reuseCreated}[m)
+      User property: maven.compiler.compilerReuseStrategy
+      Strategy to re use javacc class created: * reuseCreated (default): will
+      reuse already created but in case of multi-threaded builds, each thread
+      will have its own instance * reuseSame: the same Javacc class will be
+      used for each compilation even for multi-threaded build * alwaysNew: a
+      new Javacc class will be created for each compilation Note this parameter
+      value depends on the os/jdk you are using, but the default value should
+      work on most of env.
+
+    [1mcompilerVersion[m
+      User property: maven.compiler.compilerVersion
+      Version of the compiler to use, ex. "1.3", "1.5", if fork is set to true.
+      [1;33mDeprecated. This parameter is no longer evaluated by the
+      underlying compilers, instead the actual version of the javac binary is
+      automatically retrieved.[m
+
+    [1mcompileSourceRoots[m (Default:
+    [1m${project.testCompileSourceRoots}[m)
+      Required: true
+      The source directories containing the test-source to be compiled.
+
+    [1mcreateMissingPackageInfoClass[m (Default: [1mtrue[m)
+      User property: maven.compiler.createMissingPackageInfoClass
+      Package info source files that only contain javadoc and no annotation on
+      the package can lead to no class file being generated by the compiler.
+      This causes a file miss on the next compilations and forces an
+      unnecessary recompilation. The default value of true causes an empty
+      class file to be generated. This behavior can be changed by setting this
+      parameter to false.
+
+    [1mdebug[m (Default: [1mtrue[m)
+      User property: maven.compiler.debug
+      Set to true to include debugging information in the compiled class files.
+      See also: javac -g , debuglevel
+
+    [1mdebugFileName[m (Default: [1mjavac-test[m)
+      when forking and debug activated the commandline used will be dumped in
+      this file
+
+    [1mdebuglevel[m
+      User property: maven.compiler.debuglevel
+      Keyword list to be appended to the -g command-line switch. Legal values
+      are none or a comma-separated list of the following keywords: lines,
+      vars, and source. If debug level is not specified, by default, nothing
+      will be appended to -g. If debug is not turned on, this attribute will be
+      ignored. See also: javac -G:[lines,vars,source]
+
+    [1menablePreview[m (Default: [1mfalse[m)
+      User property: maven.compiler.enablePreview
+      Set to true to enable preview language features of the java compiler See
+      also: javac --enable-preview
+
+    [1mencoding[m (Default: [1m${project.build.sourceEncoding}[m)
+      User property: encoding
+      The -encoding argument for the Java compiler. See also: javac -encoding
+
+    [1mexecutable[m
+      User property: maven.compiler.executable
+      Sets the executable of the compiler to use when fork is true.
+
+    [1mfailOnError[m (Default: [1mtrue[m)
+      User property: maven.compiler.failOnError
+      Indicates whether the build will continue even if there are compilation
+      errors.
+
+    [1mfailOnWarning[m (Default: [1mfalse[m)
+      User property: maven.compiler.failOnWarning
+      Indicates whether the build will continue even if there are compilation
+      warnings.
+
+    [1mfileExtensions[m (Default: [1mclass,jar[m)
+      File extensions to check timestamp for incremental build.
+
+    [1mforceJavacCompilerUse[m (Default: [1mfalse[m)
+      User property: maven.compiler.forceJavacCompilerUse
+      Legacy parameter name of forceLegacyJavacApi. Only considered if
+      forceLegacyJavacApi is not set or false.
+      [1;33mDeprecated. Use forceLegacyJavacApi instead[m
+
+    [1mforceLegacyJavacApi[m (Default: [1mfalse[m)
+      User property: maven.compiler.forceLegacyJavacApi
+      The underlying compiler now uses javax.tools API if available in your
+      current JDK. Set this to true to always use the legacy
+      com.sun.tools.javac API instead. This only has an effect for compilerId
+      being javac and fork being false.
+
+    [1mfork[m (Default: [1mfalse[m)
+      User property: maven.compiler.fork
+      Allows running the compiler in a separate process. If false it uses the
+      built in compiler, while if true it will use an executable.
+
+    [1mgeneratedTestSourcesDirectory[m (Default:
+    [1m${project.build.directory}/generated-test-sources/test-annotations[m)
+      Specify where to place generated source files created by annotation
+      processing. Only applies to JDK 1.6+
+
+    [1mimplicit[m
+      User property: maven.compiler.implicit
+      Keyword to be appended to the -implicit: command-line switch. See also:
+      javac -implicit
+
+    [1mjdkToolchain[m
+      Specify the requirements for this jdk toolchain for using a different
+      javac than the one of the JRE used by Maven. This overrules the toolchain
+      selected by the maven-toolchain-plugin . (see Guide to Toolchains for
+      more info) 11 ... 1.8 zulu ... note: requires at least Maven 3.3.1
+
+    [1mmaxmem[m
+      User property: maven.compiler.maxmem
+      Sets the maximum size, in megabytes, of the memory allocation pool, ex.
+      "128", "128m" if fork is set to true.
+
+    [1mmeminitial[m
+      User property: maven.compiler.meminitial
+      Initial size, in megabytes, of the memory allocation pool, ex. "64",
+      "64m" if fork is set to true.
+
+    [1moptimize[m (Default: [1mfalse[m)
+      User property: maven.compiler.optimize
+      Set to true to optimize the compiled code using the compiler's
+      optimization methods.
+      [1;33mDeprecated. This property is a no-op in javac.[m
+
+    [1moutputDirectory[m (Default:
+    [1m${project.build.testOutputDirectory}[m)
+      Required: true
+      The directory where compiled test classes go. This parameter should only
+      be modified in special cases. See the CompilerMojo.outputDirectory for
+      more information. See also: CompilerMojo.outputDirectory
+
+    [1moutputFileName[m
+      Sets the name of the output file when compiling a set of sources to a
+      single file. expression="${project.build.finalName}"
+
+    [1moutputTimestamp[m (Default: [1m${project.build.outputTimestamp}[m)
+      Timestamp for reproducible output archive entries, either formatted as
+      ISO 8601 yyyy-MM-dd'T'HH:mm:ssXXX or as an int representing seconds since
+      the epoch (like SOURCE_DATE_EPOCH ).
+
+    [1mparameters[m (Default: [1mfalse[m)
+      User property: maven.compiler.parameters
+      Set to true to generate metadata for reflection on method parameters. See
+      also: javac -parameters
+
+    [1mproc[m
+      User property: maven.compiler.proc
+      Sets whether annotation processing is performed or not. Only applies to
+      JDK 1.6+ If not set, both compilation and annotation processing are
+      performed at the same time. Allowed values are: * none - no annotation
+      processing is performed. * only - only annotation processing is done, no
+      compilation. * full - annotation processing and compilation. full is the
+      default. Starting with JDK 21, this option must be set explicitly. See
+      also: javac -proc , javac Annotation Processing
+
+    [1mrelease[m
+      User property: maven.compiler.release
+      The -release argument for the Java compiler, supported since Java9 See
+      also: javac -release
+
+    [1mshowCompilationChanges[m (Default: [1mfalse[m)
+      User property: maven.compiler.showCompilationChanges
+      (no description available)
+
+    [1mshowDeprecation[m (Default: [1mfalse[m)
+      User property: maven.compiler.showDeprecation
+      Sets whether to show source locations where deprecated APIs are used.
+
+    [1mshowWarnings[m (Default: [1mtrue[m)
+      User property: maven.compiler.showWarnings
+      Set to false to disable warnings during compilation.
+
+    [1mskip[m
+      User property: maven.test.skip
+      Set this to 'true' to bypass compilation of test sources. Its use is NOT
+      RECOMMENDED, but quite convenient on occasion.
+
+    [1mskipMultiThreadWarning[m (Default: [1mfalse[m)
+      User property: maven.compiler.skipMultiThreadWarning
+      (no description available)
+
+    [1msource[m (Default: [1m1.8[m)
+      User property: maven.compiler.source
+      The -source argument for the Java compiler. NOTE: Since 3.8.0 the default
+      value has changed from 1.5 to 1.6 Since 3.9.0 the default value has
+      changed from 1.6 to 1.7 Since 3.11.0 the default value has changed from
+      1.7 to 1.8 See also: javac -source
+
+    [1mstaleMillis[m (Default: [1m0[m)
+      User property: lastModGranularityMs
+      Sets the granularity in milliseconds of the last modification date for
+      testing whether a source needs recompilation.
+
+    [1mtarget[m (Default: [1m1.8[m)
+      User property: maven.compiler.target
+      The -target argument for the Java compiler. NOTE: Since 3.8.0 the default
+      value has changed from 1.5 to 1.6 Since 3.9.0 the default value has
+      changed from 1.6 to 1.7 Since 3.11.0 the default value has changed from
+      1.7 to 1.8 See also: javac -target
+
+    [1mtestCompilerArgument[m
+      Sets the unformatted argument string to be passed to test compiler if
+      fork is set to true. This is because the list of valid arguments passed
+      to a Java compiler varies based on the compiler version.
+
+    [1mtestCompilerArguments[m
+      Sets the arguments to be passed to test compiler (prepending a dash) if
+      fork is set to true. This is because the list of valid arguments passed
+      to a Java compiler varies based on the compiler version.
+
+    [1mtestExcludes[m
+      A list of exclusion filters for the compiler.
+
+    [1mtestIncludes[m
+      A list of inclusion filters for the compiler.
+
+    [1mtestIncrementalExcludes[m
+      A list of exclusion filters for the incremental calculation.
+
+    [1mtestRelease[m
+      User property: maven.compiler.testRelease
+      the -release argument for the test Java compiler
+
+    [1mtestSource[m
+      User property: maven.compiler.testSource
+      The -source argument for the test Java compiler.
+
+    [1mtestTarget[m
+      User property: maven.compiler.testTarget
+      The -target argument for the test Java compiler.
+
+    [1museIncrementalCompilation[m (Default: [1mtrue[m)
+      User property: maven.compiler.useIncrementalCompilation
+      to enable/disable incremental compilation feature. This leads to two
+      different modes depending on the underlying compiler. The default javac
+      compiler does the following: * true (default) in this mode the compiler
+      plugin determines whether any JAR files the current module depends on
+      have changed in the current build run; or any source file was added,
+      removed or changed since the last compilation. If this is the case, the
+      compiler plugin recompiles all sources. * false (not recommended) this
+      only compiles source files which are newer than their corresponding class
+      files, namely which have changed since the last compilation. This does
+      not recompile other classes which use the changed class, potentially
+      leaving them with references to methods that no longer exist, leading to
+      errors at runtime.
+
+    [1museModulePath[m (Default: [1mtrue[m)
+      When true, uses the module path when compiling with a release or target
+      of 9+ and module-info.java or module-info.class is present. When false,
+      always uses the class path.
+
+    [1mverbose[m (Default: [1mfalse[m)
+      User property: maven.compiler.verbose
+      Set to true to show messages about what the compiler is doing. See also:
+      javac -verbose
+
+
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] [1;32mBUILD SUCCESS[m
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
+[[1;34mINFO[m] Total time:  0.397 s
+[[1;34mINFO[m] Finished at: 2026-07-13T15:38:59+05:30
+[[1;34mINFO[m] [1m------------------------------------------------------------------------[m
