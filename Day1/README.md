@@ -297,7 +297,7 @@ sudo chmod -R u+x /opt/tomcat10/bin
 JDK=$(readlink -f "$(which java)" | sed 's:/bin/java::')
 sudo tee /opt/tomcat10/bin/setenv.sh > /dev/null <<EOF
 export JAVA_HOME=$JDK
-export CATALINA_OPTS="Xms512m -Xmx1024m"
+export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
 ```
 
