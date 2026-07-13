@@ -86,8 +86,23 @@ temp and work
 <pre>
 - Apache Tomcat 9 uses javax.* namespace in Servlet applications
 - Oracle made Java EE as an opensource project by donating it to Eclipse Foundation
-- 
+- Requires minimum JDK 8
+- Tomcat 9 supports
+  - Servlet specification v4.0
+  - JSP v2.3
+  - WebSocket v1.1
+  - HTTP/2 ( by default )
 </pre>
+
+Tomcat 9 pom.xml
+```
+<dependency>
+  <groupId></groupId>
+  <artifactId>javax.servlet</artifactId>
+  <version>4.0.1</version>
+  <scope>provided</scope>
+</dependency>
+```
 
 ## Info - Tomcat 10 specifics
 <pre>
