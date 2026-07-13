@@ -117,7 +117,7 @@ Download and Install Tomcat9
 ```
 cd /tmp
 wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.120/bin/apache-tomcat-9.0.120.tar.gz
-sudo tar -xzf apache-tomcat-9.0.120.tar.gz -C /opt/tomcat9 --strip-Components=1
+sudo tar -xzf apache-tomcat-9.0.120.tar.gz -C /opt/tomcat9 --strip-components=1
 ```
 
 Change ownership of /opt/tomcat9 folder to tomcat user
