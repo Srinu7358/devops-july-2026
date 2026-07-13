@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.tektutor</groupId>
+    <artifactId>hello-tomcat9</artifactId>
+    <version>1.0.0</version>
+    <packaging>war</packaging>
+
+    <name>hello-tomcat9</name>
+    <description>Servlet with an injected CDI bean, targeting Tomcat 9 (javax)</description>
+
+    <properties>
+        <maven.compiler.release>8</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <servlet.api.version>4.0.1</servlet.api.version>
+        <weld.version>3.1.9.Final</weld.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- Servlet 4.0 API, javax namespace. Provided by Tomcat 9 at runtime. -->
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>javax.servlet-api</artifactId>
+            <version>${servlet.api.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Weld 3.x, the javax line of the CDI reference implementation.
+             Ships in WEB-INF/lib because Tomcat has no CDI engine. -->
+        <dependency>
+            <groupId>org.jboss.weld.servlet</groupId>
+            <artifactId>weld-servlet-shaded</artifactId>
+            <version>${weld.version}</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <finalName>hello-cdi-servlet</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.4.0</version>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
