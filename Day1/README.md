@@ -188,10 +188,40 @@ Watch live log in Terminal 2
 sudo tail -f /opt/tomcat9/logs/catalina.out
 ```
 
-Deploy out servlet
+## Lab - Deploying a Hello World Servlet into Tomcat 9
+Install Maven Build Tool in Ubuntu
 ```
+sudo apt update && sudo apt install -y maven
+mvn --version
 ```
 
-Test our custom application
+Clone the TekTutor Training Repository
 ```
+cd ~
+git clone https://github.com/tektutor/devops-july-2026.git
+cd devops-july-2026
 ```
+
+Compiling the Servlet application
+```
+cd ~/devops-july-2026
+git pull
+cd Day1/tomcat9/hello-servlet
+tree
+mvn clean package
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f94225fb-9b73-4af5-8fd1-d4f9b9a785f9" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/19cf5565-b29e-4e6f-8708-4962ba94cd72" />
+
+
+Deploy this servlet application into Apache Tomcat v9
+```
+cd ~/devops-july-2026/Day1/tomcat9/hello-servlet
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat9/webapps/
+```
+
+Test your application, in the below command replace 'Jegan' with your name
+```
+curl "http://localhost:8080/hello-tomcat-servlet/hello?name=Jegan"
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/de2211a2-441c-4a13-a78b-fc8d3e999748" />
