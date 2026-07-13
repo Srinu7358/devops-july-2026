@@ -39,13 +39,22 @@
 #### Core Components<pre>
 - Server
   - the top-level element, that represents the whole Tomcat instance
-  - Listens on port 8005 by default
+  - Listens on port 8005 for shutdown commands by default
 - Service
   - groups one or more Connectors with a Single Engine
- 
+  
 - Connector
-- Engine
-- Host
+  - accepts client connections on a port
+  - The HTTP/1.1 connector defautls to port 8080
+  - You can add an AJP connector or an HTTP/2 connector
 
+- Engine
+  - the request-processing pipeline that handles all requests for a Service
+  
+- Host
+  - a virtual host, like www.tektutor.org, mapped to a set of applications
+
+- Context
+  - a single web application, mapped to a URL path such /myapp
 </pre>
 </pre>
