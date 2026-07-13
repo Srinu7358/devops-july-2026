@@ -221,9 +221,16 @@ EOF
 
 Start the service in Terminal 1
 ```
+# The command below will ensure the new and existing service configurations are re-loaded 
 sudo systemctl daemon-reload
+
+# The command below will ensure, the next time the linux machine is rebooted, this service will be started automatic
 sudo systemctl enable tomcat9
+
+# In the current session, though we enabled the service we need manually start the service
 sudo systemctl start tomcat9
+
+# Command below, tells you current status of the service
 sudo systemctl status tomcat9
 ```
 
