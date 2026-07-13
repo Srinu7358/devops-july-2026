@@ -274,3 +274,91 @@ Test your application, in the below command replace 'Jegan' with your name
 curl "http://localhost:8080/hello-tomcat-servlet/hello?name=Jegan"
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/de2211a2-441c-4a13-a78b-fc8d3e999748" />
+
+## Lab - Install Tomcat 10 in Ubuntu
+In the Linux Terminal, type the below commands
+```
+sudo mkdir -p /opt/tomcat10
+sudo useradd -r -m -U -d /opt/tomcat10 -s /bin/false tomcat10
+```
+
+Download and Install Apache Tomcat 10
+```
+cd /tmp
+wget https://downloads01-he-fi.apache.org/tomcat/tomcat-10/v10.1.57/bin/apache-tomcat-10.1.57.tar.gz
+sudo tar -xzf apache-tomcat-10.1.57.tar.gz -C /opt/tomcat10 --strip-components=1
+```
+
+Manage ownership
+```
+sudo chown -R tomcat10:tomcat10 /opt/tomcat10
+sudo chmod -R u+x /opt/tomcat10/bin
+
+JDK=$(readlink -f "$(which java)" | sed 's:/bin/java::')
+sudo tee /opt/tomcat10/bin/setenv.sh > /dev/null <<EOF
+export JAVA_HOME=$JDK
+export CATALINA_OPTS="Xms512m -Xmx1024m"
+EOF
+```
+
+Manage the ownership
+```
+sudo chown tomcat10:tomcat10 /opt/tomcat10/bin/setenv.sh
+sudo chmod +x /opt/tomcat10/bin/setenv.sh
+cat /opt/tomcat10/bin/setenv.sh
+```
+
+Change the port so it doesn't conflict with tomcat9
+```
+# Edit sudo vim /opt/tomcat10/conf/server.xml
+# Change the shutdown port from 8005 to 8006
+# Change the HTTP connector port from 8080 to 8090
+# If AJP port is uncommented from 8009 to 8010
+```
+
+Create a service for Tomcat 10
+```
+sudo tee /etc/systemd/system/tomcat10.service > /dev/null << 'EOF'
+[Unit]
+Description=Apache Tomcat 10.1
+After=network.target
+
+[Service]
+Type=forking
+
+User=tomcat10
+Group=tomcat10
+
+Environment="JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64"
+Environment="CATALINA_HOME=/opt/tomcat10"
+Environment="CATALINA_BASE=/opt/tomcat10"
+Environment="CATALINA_PID=/opt/tomcat10/temp/tomcat.pid"
+
+ExecStart=/opt/tomcat10/bin/startup.sh
+ExecStop=/opt/tomcat10/bin/shutdown.sh
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Start the service in Terminal 1
+```
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat10
+sudo systemctl start tomcat10
+sudo systemctl status tomcat10
+```
+
+Test in Terminal 1
+```
+curl http://localhost:8090
+```
+
+Watch live log in Terminal 2
+```
+sudo tail -f /opt/tomcat10/logs/catalina.out
+```
+
