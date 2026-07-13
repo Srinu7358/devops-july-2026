@@ -351,14 +351,17 @@ sudo systemctl enable tomcat10
 sudo systemctl start tomcat10
 sudo systemctl status tomcat10
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ed44aef9-f948-4b46-b15e-2970b41240c8" />
 
 Test in Terminal 1
 ```
 curl http://localhost:8090
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/32b9973c-cde5-481a-ab82-1ac664727502" />
 
 Watch live log in Terminal 2
 ```
 sudo tail -f /opt/tomcat10/logs/catalina.out
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/9cf8812f-a338-48ce-9a15-25ef86646f30" />
 
