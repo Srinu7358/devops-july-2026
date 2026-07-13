@@ -1,1 +1,2 @@
-# devops-july-2026
+# Advanced Devops 13-17 July 2026
+
