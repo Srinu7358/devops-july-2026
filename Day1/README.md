@@ -132,7 +132,10 @@ sudo tee /opt/tomcat9/bin/setenv.sh > /dev/null <<'EOF'
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
+```
 
+Change the ownership of setenv.sh script to tomcat user
+```
 sudo chown tomcat:tomcat /opt/tomcat9/bin/setenv.sh
 sudo chmod +x /opt/tomcat9/bin/setenv.sh
 ```
