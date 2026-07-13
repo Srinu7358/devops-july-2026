@@ -144,6 +144,10 @@ Tomcat 10 pom.xml
   ownership correctly on the install directory
 </pre>
 
+## Vim editor basics
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/6a949b46-b89d-485f-b97e-92b88796135f" />
+
+
 ## Lab - Install Tomcat9 in Ubuntu 
 
 Open a terminal 1, type the below commands
