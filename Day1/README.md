@@ -91,14 +91,15 @@ temp and work
   - Servlet specification v4.0
   - JSP v2.3
   - WebSocket v1.1
+  - Weld 3.x
   - HTTP/2 ( by default )
 </pre>
 
 Tomcat 9 pom.xml
 ```
 <dependency>
-  <groupId></groupId>
-  <artifactId>javax.servlet</artifactId>
+  <groupId>javax.servlet</groupId>
+  <artifactId>javax.servlet-api</artifactId>
   <version>4.0.1</version>
   <scope>provided</scope>
 </dependency>
@@ -106,7 +107,25 @@ Tomcat 9 pom.xml
 
 ## Info - Tomcat 10 specifics
 <pre>
+- Apache 10 uses jakarta.* namespace due to the Java trademark issue
+- The Servelet that was built for Tomcat9 will not work in Tomcat 10.x or 11.x
+- Requires minimum JDK 11
+- Tomcat 10 supports
+  - Servlet specification v3.1
+  - WebSocket v2.1
+  - Weld 5.x
+  - HTTP/2 ( Default )
 </pre>  
+
+Tomcat 10 pom.xml
+```
+<dependency>
+  <groupId>javax.servlet</groupId>
+  <artifactId>jakarta.servlet-api</artifactId>
+  <version>6.0.</version>
+  <scope>provided</scope>
+</dependency>
+```
 
 ## Info - Tomcat 11 specifics
 <pre>
