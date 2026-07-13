@@ -305,7 +305,7 @@ Manage the ownership
 ```
 sudo chown tomcat10:tomcat10 /opt/tomcat10/bin/setenv.sh
 sudo chmod +x /opt/tomcat10/bin/setenv.sh
-cat /opt/tomcat10/bin/setenv.sh
+sudo cat /opt/tomcat10/bin/setenv.sh
 ```
 
 Change the port so it doesn't conflict with tomcat9
