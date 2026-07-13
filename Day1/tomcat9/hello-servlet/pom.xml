@@ -41,7 +41,7 @@
     </dependencies>
 
     <build>
-        <finalName>hello-cdi-servlet</finalName>
+        <finalName>hello-tomcat-servlet</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
