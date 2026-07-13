@@ -1,6 +1,7 @@
 # Day 1
 
 ## URLs for Feed and pre-test links - Access from RPS Cloud Lab machine
+In case you have some issues accessing feedback and/or pre-test link, kindly contact Srinath from RPS at his mobile 6303416523 
 <pre>
 https://notepad.pw/DevOps13
 </pre>  
