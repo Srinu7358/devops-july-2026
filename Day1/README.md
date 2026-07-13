@@ -29,3 +29,23 @@
 - Most teams pick Tomcat because it stays lightweight and starts fast.
 - You run it when your application  needs a servlet container and nothing heavier
 </pre>
+
+#### What Apache Tomcat does ?
+<pre>
+- When a request hits Tomcat, it maps the URL to a Servlet, run your Java code, and retuns the response.
+- It manages the HTTP connection, request threading, session state, and the Servlet lifecycle
+- You deploy an application as a WAR file or an exploded directory under webapps
+
+#### Core Components<pre>
+- Server
+  - the top-level element, that represents the whole Tomcat instance
+  - Listens on port 8005 by default
+- Service
+  - groups one or more Connectors with a Single Engine
+ 
+- Connector
+- Engine
+- Host
+
+</pre>
+</pre>
