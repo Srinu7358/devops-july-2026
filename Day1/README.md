@@ -100,6 +100,8 @@ temp and work
 </pre>
 
 ## Lab - Install Tomcat9 in Ubuntu 
+
+Open a terminal 1, type the below commands
 ```
 sudo apt update
 sudo apt install -y openjdk-17-jdk
@@ -181,7 +183,7 @@ Test
 curl http://localhost:8080
 ```
 
-Watch live log
+Watch live log in Terminal 2
 ```
 sudo tail -f /opt/tomcat9/logs/catalina.out
 ```
