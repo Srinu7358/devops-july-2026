@@ -82,6 +82,17 @@ temp and work
 - scratchspace and compiled JSPs
 </pre>
 
+## Info - Apache Tomcat 9 specifics
+<pre>
+- Apache Tomcat 9 uses javax.* namespace in Servlet applications
+- Oracle made Java EE as an opensource project by donating it to Eclipse Foundation
+- 
+</pre>
+
+## Info - Tomcat 10 specifics
+<pre>
+</pre>  
+
 ## Info - Tomcat 11 specifics
 <pre>
 - Tomcat 11 targets Jakarta EE 11 and requires Java 17 a minimum requirement
@@ -208,6 +219,10 @@ cd ~/devops-july-2026
 git pull
 cd Day1/tomcat9/hello-servlet
 tree
+mvn clean package
+
+# In case you got compilation error
+git pull
 mvn clean package
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f94225fb-9b73-4af5-8fd1-d4f9b9a785f9" />
