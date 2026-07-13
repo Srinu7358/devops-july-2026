@@ -60,3 +60,24 @@
 
 ## Info - Tomcat High-Level Architecture
 ![tomcat](tomcat-architecture.svg)
+
+
+## Info - Tomcat Directory Layout
+<pre>
+bin 
+- startup and shutdown scripts 
+- catalina.sh
+- startup.sh
+- shutdown.sh
+conf
+- it has configurations,including server.xml, web.xml, tomcat-users.xml 
+webapps
+- deployed applications can be found here ( all the wars files )
+logs
+- catalina.out and access.logs
+lib
+- Tomcat and shared libraries
+temp and work
+- scratchspace and compiled JSPs
+</pre>
+</pre>
