@@ -35,8 +35,10 @@
 - When a request hits Tomcat, it maps the URL to a Servlet, run your Java code, and retuns the response.
 - It manages the HTTP connection, request threading, session state, and the Servlet lifecycle
 - You deploy an application as a WAR file or an exploded directory under webapps
+</pre>
 
 #### Core Components<pre>
+<pre>
 - Server
   - the top-level element, that represents the whole Tomcat instance
   - Listens on port 8005 for shutdown commands by default
@@ -60,7 +62,6 @@
 
 ## Info - Tomcat High-Level Architecture
 ![tomcat](tomcat-architecture.svg)
-
 
 ## Info - Tomcat Directory Layout
 <pre>
