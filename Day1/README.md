@@ -134,7 +134,7 @@ export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
 
 sudo chown tomcat:tomcat /opt/tomcat9/bin/setenv.sh
-sudo chmod +x /opt/tomcat9/bin/setup.sh
+sudo chmod +x /opt/tomcat9/bin/setenv.sh
 ```
 
 Run Tomcat9 as a linux service
