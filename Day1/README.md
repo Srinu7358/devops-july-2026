@@ -109,26 +109,26 @@ java -version
 javac -version
 ```
 
-Create a dedicated folder for Tomcat9
+Create a dedicated folder for Tomcat9 in Terminal 1
 ```
 sudo mkdir -p /opt/tomcat9
 sudo useradd -r -m -U -d /opt/tomcat9 -s /bin/false tomcat
 ```
 
-Download and Install Tomcat9
+Download and Install Tomcat9 in Terminal 1
 ```
 cd /tmp
 wget https://dlcdn.apache.org/tomcat/tomcat-9/v9.0.120/bin/apache-tomcat-9.0.120.tar.gz
 sudo tar -xzf apache-tomcat-9.0.120.tar.gz -C /opt/tomcat9 --strip-components=1
 ```
 
-Change ownership of /opt/tomcat9 folder to tomcat user
+Change ownership of /opt/tomcat9 folder to tomcat user in Terminal 1
 ```
 sudo chown -R tomcat:tomcat /opt/tomcat9
 sudo chmod -R u+x /opt/tomcat9/bin
 ```
 
-Configure the JVM settings
+Configure the JVM settings in Terminal 1
 ```
 sudo tee /opt/tomcat9/bin/setenv.sh > /dev/null <<'EOF'
 export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
@@ -136,13 +136,13 @@ export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
 ```
 
-Change the ownership of setenv.sh script to tomcat user
+Change the ownership of setenv.sh script to tomcat user in Terminal 1
 ```
 sudo chown tomcat:tomcat /opt/tomcat9/bin/setenv.sh
 sudo chmod +x /opt/tomcat9/bin/setenv.sh
 ```
 
-Run Tomcat9 as a linux service
+Run Tomcat9 as a linux service in Terminal 1
 ```
 sudo tee /etc/systemd/system/tomcat9.service > /dev/null << 'EOF'
 [Unit]
@@ -170,7 +170,7 @@ WantedBy=multi-user.target
 EOF
 ```
 
-Start the service
+Start the service in Terminal 1
 ```
 sudo systemctl daemon-reload
 sudo systemctl enable tomcat9
@@ -178,7 +178,7 @@ sudo systemctl start tomcat9
 sudo systemctl status tomcat9
 ```
 
-Test
+Test in Terminal 1
 ```
 curl http://localhost:8080
 ```
