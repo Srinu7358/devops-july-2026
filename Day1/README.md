@@ -57,4 +57,6 @@
 - Context
   - a single web application, mapped to a URL path such /myapp
 </pre>
-</pre>
+
+## Info - Tomcat High-Level Architecture
+![tomcat](tomcat-architecture.svg)
