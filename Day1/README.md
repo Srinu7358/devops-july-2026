@@ -80,4 +80,20 @@ lib
 temp and work
 - scratchspace and compiled JSPs
 </pre>
+
+## Info - Tomcat 11 specifics
+<pre>
+- Tomcat 11 targets Jakarta EE 11 and requires Java 17 a minimum requirement
+- It uses the jakarta.* namespace not the older javax.*
+- Applications written for Tomcat 9 or earlier will not run unmodified, since the package rename breaks
+  import statements
+- this matters when you migrate legacy apps
+- Change the HTTP port by editing the Connector port attribute in server.xml from 8080 to 8081
+- Set JVM memory by adding CATALINAT_OPTS="Xms512m" -Xmx1024m" to bin/setenv.sh
+- Enable HTTPS by configuring an SSL Connector with a keystore
+- one operational detail worth noting
+  - if you run Tomcat under a dedicated tomcat user
+  - set file ownership correctly on the install directory
+  - wrong ownership causes setenv.sh to be skipped silently and CATALINS_OPS shows up blank at
+  ownership correctly on the install directory
 </pre>
