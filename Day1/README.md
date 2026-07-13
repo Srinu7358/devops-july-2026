@@ -111,7 +111,7 @@ Tomcat 9 pom.xml
 - The Servelet that was built for Tomcat9 will not work in Tomcat 10.x or 11.x
 - Requires minimum JDK 11
 - Tomcat 10 supports
-  - Servlet specification v3.1
+  - Jakarta Servlet specification v3.1
   - WebSocket v2.1
   - Weld 5.x
   - HTTP/2 ( Default )
@@ -120,9 +120,9 @@ Tomcat 9 pom.xml
 Tomcat 10 pom.xml
 ```
 <dependency>
-  <groupId>javax.servlet</groupId>
+  <groupId>jakarta.servlet</groupId>
   <artifactId>jakarta.servlet-api</artifactId>
-  <version>6.0.</version>
+  <version>6.0</version>
   <scope>provided</scope>
 </dependency>
 ```
