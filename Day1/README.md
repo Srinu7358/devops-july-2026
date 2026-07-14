@@ -775,7 +775,7 @@ sudo systemctl restart tomcat11
 Deploy with curl
 ```
 curl --user deployer:admin@123 \
-  --upload-file ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+  --upload-file ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   "http://localhost:8100/manager/text/deploy?path=/hello3&update=true"
 ```
 
