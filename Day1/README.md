@@ -16,12 +16,48 @@ https://notepad.pw/DevOps13
 - Servlet is created and controlled by the Servlet container
 </pre>
 
+Below is a simple servlet
+<pre>
+package org.tektutor;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+@WebServlet("/hello")
+public class HelloServlet extends HttpServlet {
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+        resp.setContentType("text/plain");
+        resp.getWriter().write("Hello from Tomcat");
+    }
+}
+</pre>
+
 ## Info - Bean Overview
 <pre>
 - A Bean is a different of Object
 - It is a plain Java class whose lifecycle a container manages for you,
   you never write new(allocate/delete) for it
 - In the CDI(Context Dependency Injection) word, most classes qualify as beans automatically once CDI is switched on
+</pre>
+
+Below is a simple Bean
+<pre>
+package org.tektutor;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+    public String greet(String name) {
+        return "Hello " + name + " from Tomcat";
+    }
+}
 </pre>
 
 ## Info - Apache Tomcat Overview
