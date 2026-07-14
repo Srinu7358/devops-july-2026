@@ -793,13 +793,10 @@ Management console url
 ```
 http://localhost:8100/manager/html
 curl --user deployer:admin@123 "http://localhost:8100/manager/text/list"
-curl --user deployer:admin@123 "http://localhost:8100/manager/text/reload?path=/hello3"
-#Undeploy
-curl --user deployer:admin@123 "http://localhost:8100/manager/text/undeploy?path=/hello3"
 ```
 
 ## Lab - Deploy application using Maven
-Add this in the pom.xml
+Add this in your pom.xml under <build><plugins> section
 ```
 <plugin>
     <groupId>org.codehaus.cargo</groupId>
@@ -844,5 +841,7 @@ mvn clean package cargo:redeploy
 
 Verify
 ```
+# Check the status of hello4 deployment
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/status?path=/hello4"
 curl "http://localhost:8100/hello4/hello?name=Jegan"
 ```
