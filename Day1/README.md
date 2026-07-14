@@ -711,7 +711,7 @@ sudo mv /opt/tomcat11/webapps/ROOT.war /opt/tomcat11/ROOT.war1
 
 Copy your war as ROOT.war
 ```
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+sudo cp ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   /opt/tomcat11/webapps/ROOT.war
 
 sudo chown tomcat11:tomcat11 /opt/tomcat11/webapps/ROOT.war
