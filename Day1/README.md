@@ -757,7 +757,7 @@ Inside the <tomcat-users> element add an user with both roles
 ```
 <role rolename="manager-script"/>
 <role rolename="manager-gui"/>
-<user username="deployer" password="S3cret-Change-Me" roles="manager-script,manager-gui"/>
+<user username="deployer" password="admin@123" roles="manager-script,manager-gui"/>
 ```
 
 Allow remote access
