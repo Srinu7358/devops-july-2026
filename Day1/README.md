@@ -665,9 +665,12 @@ systemctl status tomcat9 tomcat10 tomcat11 --no-pager | grep -E 'tomcat|Active'
 
 Deploy
 ```
-cd ~/devops-july-2025/Day1/tomcat10/hello-servlet
+cd ~/devops-july-2026/Day1/tomcat9/hello-servlet
 mvn clean package
 sudo cp target/hello-tomcat-servlet.war /opt/tomcat9/webapps/
+
+cd ../../tomcat10/hello-servlet
+mvn clean package
 sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
 sudo cp target/hello-tomcat-servlet.war /opt/tomcat11/webapps/
 ```
@@ -675,7 +678,7 @@ sudo cp target/hello-tomcat-servlet.war /opt/tomcat11/webapps/
 ## Lab - Deploying using exploded directory
 ```
 sudo mkdir -p /opt/tomcat11/webapps/hello2
-sudo unzip ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+sudo unzip ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   -d /opt/tomcat11/webapps/hello2
 ```
 
@@ -688,7 +691,7 @@ Deploy
 ```
 sudo tail -f /opt/tomcat11/logs/catalina.out
 sudo systemctl restart tomcat11
-curl "http://localhost:8100/hello2/hello?name=Jegan"
+curl "http://localhost:8100/hello2/hello?name=Tomcat11"
 ```
 
 Undeploy
