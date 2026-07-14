@@ -815,13 +815,13 @@ Add this in the pom.xml
             <properties>
                 <cargo.remote.uri>http://localhost:8100/manager/text</cargo.remote.uri>
                 <cargo.remote.username>deployer</cargo.remote.username>
-                <cargo.remote.password>S3cret-Change-Me</cargo.remote.password>
+                <cargo.remote.password>admin@123</cargo.remote.password>
             </properties>
         </configuration>
         <deployables>
             <deployable>
                 <groupId>org.tektutor</groupId>
-                <artifactId>hello-cdi-servlet-tomcat10-11</artifactId>
+                <artifactId>hello-tomcat-servlet</artifactId>
                 <type>war</type>
                 <properties>
                     <context>/hello4</context>
