@@ -258,6 +258,7 @@ sudo ss -tlnp | grep -E ":(9081|9082|9083|9005|9006|9007)\b"
 
 Let's build our application
 ```
+exit # make sure you run this as non-admin (student) user
 cd ~/devops-july-2026
 git pull
 cd Day2/hello-app
