@@ -842,6 +842,5 @@ mvn clean package cargo:redeploy
 Verify
 ```
 # Check the status of hello4 deployment
-curl --user deployer:admin@123 "http://localhost:8100/manager/text/status?path=/hello4"
 curl "http://localhost:8100/hello4/hello?name=Jegan"
 ```
