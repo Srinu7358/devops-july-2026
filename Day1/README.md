@@ -300,6 +300,23 @@ Tomcat 10 pom.xml
 </dependency>
 ```
 
+## Lab - Deploying web application into Tomcat 10 Server
+```
+cd ~/devops-july-2026
+git pull
+cd Day1/tomcat10/hello-servlet
+mvn clean package
+
+# Check if Tomcat 10 Web server is running
+sudo systemctl status tomcat10
+
+# Once you know Tomcat 10 server is up and running normally, you may deploy the application
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
+
+# Test your application
+curl "http://localhost:8090/hello-tomcat-servlet/hello?name=Tomcat!"
+```
+
 ## Info - Tomcat 11 specifics
 <pre>
 - Tomcat 11 targets Jakarta EE 11 and requires Java 17 a minimum requirement
