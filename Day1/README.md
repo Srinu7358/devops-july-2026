@@ -6,6 +6,32 @@ In case you have some issues accessing feedback and/or pre-test link, kindly con
 https://notepad.pw/DevOps13
 </pre>  
 
+## Lab - Installing Visual Studio Code editor in Ubuntu
+```
+echo "code code/add-microsoft-repo boolean true" | sudo debconf-set-selections
+sudo apt install wget gpg &&
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+```
+
+Add the Visual studio code repository url
+```
+sudo tee /etc/apt/sources.list.d/vscode.sources > /dev/null << 'EOF'
+
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64,arm64,armhf
+Signed-By: /usr/share/keyrings/microsoft.gpg
+EOF
+```
+
+Install Visual studio code editor
+```
+sudo apt update &&
+sudo apt install code # or code-insiders
+```
+
 ## Info - Servlet Overview
 <pre>
 - A Servlet class is a Java class that handles HTTP requests
