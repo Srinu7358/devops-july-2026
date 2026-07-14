@@ -6,6 +6,32 @@ In case you have some issues accessing feedback and/or pre-test link, kindly con
 https://notepad.pw/DevOps13
 </pre>  
 
+## Lab - Installing Visual Studio Code editor in Ubuntu
+```
+echo "code code/add-microsoft-repo boolean true" | sudo debconf-set-selections
+sudo apt install wget gpg &&
+wget -qO- https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+```
+
+Add the Visual studio code repository url
+```
+sudo tee /etc/apt/sources.list.d/vscode.sources > /dev/null << 'EOF'
+
+Types: deb
+URIs: https://packages.microsoft.com/repos/code
+Suites: stable
+Components: main
+Architectures: amd64,arm64,armhf
+Signed-By: /usr/share/keyrings/microsoft.gpg
+EOF
+```
+
+Install Visual studio code editor
+```
+sudo apt update &&
+sudo apt install code # or code-insiders
+```
+
 ## Info - Servlet Overview
 <pre>
 - A Servlet class is a Java class that handles HTTP requests
@@ -272,6 +298,23 @@ Tomcat 10 pom.xml
   <version>6.0</version>
   <scope>provided</scope>
 </dependency>
+```
+
+## Lab - Deploying web application into Tomcat 10 Server
+```
+cd ~/devops-july-2026
+git pull
+cd Day1/tomcat10/hello-servlet
+mvn clean package
+
+# Check if Tomcat 10 Web server is running
+sudo systemctl status tomcat10
+
+# Once you know Tomcat 10 server is up and running normally, you may deploy the application
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
+
+# Test your application
+curl "http://localhost:8090/hello-tomcat-servlet/hello?name=Tomcat!"
 ```
 
 ## Info - Tomcat 11 specifics
@@ -551,10 +594,13 @@ sudo tee /opt/tomcat11/bin/setenv.sh > /dev/null <<EOF
 export JAVA_HOME=$JDK
 export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
+```
 
+Manage ownership of setenv.sh file
+```
 sudo chown tomcat11:tomcat11 /opt/tomcat11/bin/setenv.sh
-sudo chmod +x /opt/tomcat11/bin/setenv.sh
-cat /opt/tomcat11/bin/setenv.sh
+sudo chmod u+x /opt/tomcat11/bin/setenv.sh
+sudo cat /opt/tomcat11/bin/setenv.sh
 ```
 
 Change the ports
@@ -622,15 +668,30 @@ systemctl status tomcat9 tomcat10 tomcat11 --no-pager | grep -E 'tomcat|Active'
 
 Deploy
 ```
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat9/target/hello-cdi-servlet.war /opt/tomcat9/webapps/
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat10/webapps/
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat11/webapps/
+cd ~/devops-july-2026
+git pull
+cd Day1/tomcat9/hello-servlet
+mvn clean package
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat9/webapps/
+
+cd ../../tomcat10/hello-servlet
+mvn clean package
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat11/webapps/
 ```
+
+Test
+```
+curl "http://localhost:8080/hello-tomcat-servlet/hello?name=Tomcat9!"
+curl "http://localhost:8090/hello-tomcat-servlet/hello?name=Tomcat10!"
+curl "http://localhost:8100/hello-tomcat-servlet/hello?name=Tomcat11!"
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d8135444-8835-4a66-9ff9-32550b4f428b" />
 
 ## Lab - Deploying using exploded directory
 ```
 sudo mkdir -p /opt/tomcat11/webapps/hello2
-sudo unzip ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+sudo unzip ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   -d /opt/tomcat11/webapps/hello2
 ```
 
@@ -643,7 +704,7 @@ Deploy
 ```
 sudo tail -f /opt/tomcat11/logs/catalina.out
 sudo systemctl restart tomcat11
-curl "http://localhost:8100/hello2/hello?name=Jegan"
+curl "http://localhost:8100/hello2/hello?name=Tomcat11"
 ```
 
 Undeploy
@@ -657,13 +718,18 @@ Remove existing ROOT
 ```
 #Not removing, let's just rename the folder
 sudo systemctl stop tomcat11
-sudo mv /opt/tomcat11/webapps/ROOT /opt/tomcat11/ROOT1
+
+# In case already someone has deploy their application at root context
+# Let's ensure we are not deleting it, hence let's take a backup before we
+# Deploy our application in the root context
+# In case you get an error saying no such file or directory, ignore it
+sudo mv /opt/tomcat11/webapps/ROOT /opt/tomcat11/ROOT1  
 sudo mv /opt/tomcat11/webapps/ROOT.war /opt/tomcat11/ROOT.war1
 ```
 
 Copy your war as ROOT.war
 ```
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+sudo cp ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   /opt/tomcat11/webapps/ROOT.war
 
 sudo chown tomcat11:tomcat11 /opt/tomcat11/webapps/ROOT.war
@@ -691,7 +757,7 @@ Inside the <tomcat-users> element add an user with both roles
 ```
 <role rolename="manager-script"/>
 <role rolename="manager-gui"/>
-<user username="deployer" password="S3cret-Change-Me" roles="manager-script,manager-gui"/>
+<user username="deployer" password="admin@123" roles="manager-script,manager-gui"/>
 ```
 
 Allow remote access
@@ -708,23 +774,28 @@ sudo systemctl restart tomcat11
 
 Deploy with curl
 ```
-curl --user deployer:S3cret-Change-Me \
-  --upload-file ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+curl --user deployer:admin@123 \
+  --upload-file ~/devops-july-2026/Day1/tomcat10/hello-servlet/target/hello-tomcat-servlet.war \
   "http://localhost:8100/manager/text/deploy?path=/hello3&update=true"
+```
+
+In case you wish to access from terminal
+```
+curl http://localhost:8100/hello3/hello?name=Tomcat11
 ```
 
 Access from web browser
 ```
-http://localhost:8100/hello3/hello?name=Jegan
+http://localhost:8100/hello3/hello?name=Tomcat11
 ```
 
 Management console url
 ```
 http://localhost:8100/manager/html
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/list"
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/reload?path=/hello3"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/list"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/reload?path=/hello3"
 #Undeploy
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/undeploy?path=/hello3"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/undeploy?path=/hello3"
 ```
 
 ## Lab - Deploy application using Maven
@@ -744,13 +815,13 @@ Add this in the pom.xml
             <properties>
                 <cargo.remote.uri>http://localhost:8100/manager/text</cargo.remote.uri>
                 <cargo.remote.username>deployer</cargo.remote.username>
-                <cargo.remote.password>S3cret-Change-Me</cargo.remote.password>
+                <cargo.remote.password>admin@123</cargo.remote.password>
             </properties>
         </configuration>
         <deployables>
             <deployable>
                 <groupId>org.tektutor</groupId>
-                <artifactId>hello-cdi-servlet-tomcat10-11</artifactId>
+                <artifactId>hello-tomcat-servlet</artifactId>
                 <type>war</type>
                 <properties>
                     <context>/hello4</context>
