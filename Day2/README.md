@@ -84,7 +84,7 @@ Let's configure the /srv/node2/conf/server.xml
   <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
   <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
   <Service name="Catalina">
-    <Connector port="9081" protocol="HTTP/1.1"
+    <Connector port="9082" protocol="HTTP/1.1"
                connectionTimeout="20000"
                maxThreads="150" />
     <Engine name="Catalina" defaultHost="localhost" jvmRoute="node2">
@@ -106,7 +106,7 @@ Let's configure the /srv/node3/conf/server.xml
   <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
   <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
   <Service name="Catalina">
-    <Connector port="9081" protocol="HTTP/1.1"
+    <Connector port="9083" protocol="HTTP/1.1"
                connectionTimeout="20000"
                maxThreads="150" />
     <Engine name="Catalina" defaultHost="localhost" jvmRoute="node3">
