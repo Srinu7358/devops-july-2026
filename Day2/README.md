@@ -275,7 +275,7 @@ done
 
 sleep 15 # autoDeploy scans every 10 seconds
 
-ls -d /srv/node1/webapps/hello /srv/node2/webapps/hello /srv/node3/webapps/hello
+ls -d /srv/node1/webapps/hello.war /srv/node2/webapps/hello.war /srv/node3/webapps/hello.war
 
 curl http://localhost:9081/hello/
 curl http://localhost:9082/hello/
