@@ -124,6 +124,53 @@ temp and work
 - scratchspace and compiled JSPs
 </pre>
 
+## Info - server.xml
+conf/server.xml
+<pre>
+- The blueprint for the whole server
+- Read it top down and the nesting tells you the architecture
+- server.xml is only read at startup. 
+- If you edit it, and nothing happens until you restart the Tomcat serrver
+</pre>  
+```
+<Server port="8005">          one JVM
+  <Service name="Catalina">   one engine + its connectors
+    <Connector port="8080"/>  the doors
+    <Engine name="Catalina" defaultHost="localhost">
+      <Host name="localhost" appBase="webapps" unpackWARs="true" autoDeploy="true">
+        <Context .../>        optional; usually defined elsewhere
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+## Info - context.xml
+<pre>
+- Global defaults applied to every web application
+- Its job is per-application settings, not per-server settings
+- Resource xml element can be used to capture JNDI datasources shared by all apps
+- tells which resources must be monitored for changes, and when those files are updated,
+  tomcat reloads those application
+</pre>
+
+A Sample context.xml that I took from tomcat10 looks as below
+```
+<Context>
+
+    <!-- Default set of monitored resources. If one of these changes, the    -->
+    <!-- web application will be reloaded.                                   -->
+    <WatchedResource>WEB-INF/web.xml</WatchedResource>
+    <WatchedResource>WEB-INF/tomcat-web.xml</WatchedResource>
+    <WatchedResource>${catalina.base}/conf/web.xml</WatchedResource>
+
+    <!-- Uncomment this to enable session persistence across Tomcat restarts -->
+    <!--
+    <Manager pathname="SESSIONS.ser" />
+    -->
+</Context>
+```
+
 ## Info - Apache Tomcat 9 specifics
 <pre>
 - Apache Tomcat 9 uses javax.* namespace in Servlet applications
