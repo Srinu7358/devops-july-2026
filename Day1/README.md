@@ -124,7 +124,7 @@ temp and work
 - scratchspace and compiled JSPs
 </pre>
 
-## Info - server.xml
+## Info - conf/server.xml
 conf/server.xml
 <pre>
 - The blueprint for the whole server
@@ -145,7 +145,7 @@ conf/server.xml
 </Server>
 ```
 
-## Info - context.xml
+## Info - conf/context.xml
 <pre>
 - Global defaults applied to every web application
 - Its job is per-application settings, not per-server settings
@@ -169,6 +169,64 @@ A Sample context.xml that I took from tomcat10 looks as below
     <Manager pathname="SESSIONS.ser" />
     -->
 </Context>
+```
+
+## Info - conf/web.xml
+<pre>
+- The global deployment descriptor
+- Every deployed app inherits it, then overlays its own WEB-INF/web.xml
+- Two servlets are declared here and both are worth showing:
+  - DefaultServlet serves static files. 
+  - Its listings parameter is false, which is why you get 404 instead of a directory listing
+  - JspServlet compiles JSPs
+  - Its development=true setting is why a JSP change takes effect without redeploy
+  - Set it to false in production; it stops the timestamp check on every request.
+</pre>  
+
+A sample conf/web.xml looks as below
+```
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                      https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+  version="6.0">
+
+    <session-config>
+        <session-timeout>30</session-timeout>
+    </session-config>
+
+    <!-- there will be many mime type mappings in the actual file, I have just included 2 of them to give an ide -->
+    <mime-mapping>
+        <extension>zirz</extension>
+        <mime-type>application/vnd.zul</mime-type>
+    </mime-mapping>
+    <mime-mapping>
+        <extension>zmm</extension>
+        <mime-type>application/vnd.handheld-entertainment+xml</mime-type>
+    </mime-mapping>
+
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+        <welcome-file>index.htm</welcome-file>
+        <welcome-file>index.jsp</welcome-file>
+    </welcome-file-list>
+
+</web-app>
+```
+
+## Info- conf/tomcat-users.xml
+<pre>
+- Users, passwords, and roles for the Manager and Host Manager apps
+- Ships with everything commented out
+- an out-of-the-box Tomcat has no accounts at all
+</pre>
+
+A sample configured conf/tomcat-users.xml looks as below
+```
+<role rolename="manager-gui"/>
+<role rolename="manager-script"/>
+<user username="admin" password="s3cret" roles="manager-gui"/>
+<user username="deployer" password="d3ploy" roles="manager-script"/>
 ```
 
 ## Info - Apache Tomcat 9 specifics
