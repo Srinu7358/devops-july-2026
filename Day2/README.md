@@ -80,7 +80,7 @@ Let's configure the /srv/node1/conf/server.xml
 Let's configure the /srv/node2/conf/server.xml
 ```
 <?xml version="1.0" encoding="UTF-8"?>
-<Server port="9005" shutdown="SHUTDOWN">
+<Server port="9006" shutdown="SHUTDOWN">
   <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
   <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
   <Service name="Catalina">
@@ -102,7 +102,7 @@ Let's configure the /srv/node2/conf/server.xml
 Let's configure the /srv/node3/conf/server.xml
 ```
 <?xml version="1.0" encoding="UTF-8"?>
-<Server port="9005" shutdown="SHUTDOWN">
+<Server port="9007" shutdown="SHUTDOWN">
   <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
   <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
   <Service name="Catalina">
