@@ -300,6 +300,11 @@ curl -s http://localhost:9083/hello/ | grep "Node name" # works
 
 sudo systemctl start tomcat-node2
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/242df350-aa05-45bd-9096-8ebdf4a98025" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/4859378a-d560-457c-91a0-c006bfe5b491" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0b8477ff-6223-4d9b-a277-ab659d5d5afa" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/de24a54a-96cb-450a-8a5b-c5482249bdd2" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d0536263-eba4-47b2-9a9d-a22e1ea35f63" />
 
 ## Lab - Setup up a three-instance Tomcat topology
 <pre>
