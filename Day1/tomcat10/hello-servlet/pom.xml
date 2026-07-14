@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.tektutor</groupId>
-    <artifactId>hello-tomcat10</artifactId>
+    <artifactId>hello-tomcat-servlet</artifactId>
     <version>1.0.0</version>
     <packaging>war</packaging>
 
@@ -49,6 +49,35 @@
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.4.0</version>
             </plugin>
+	<plugin>
+	    <groupId>org.codehaus.cargo</groupId>
+	    <artifactId>cargo-maven3-plugin</artifactId>
+	    <version>1.10.20</version>
+	    <configuration>
+		<container>
+		    <containerId>tomcat11x</containerId>
+		    <type>remote</type>
+		</container>
+		<configuration>
+		    <type>runtime</type>
+		    <properties>
+			<cargo.remote.uri>http://localhost:8100/manager/text</cargo.remote.uri>
+			<cargo.remote.username>deployer</cargo.remote.username>
+			<cargo.remote.password>admin@123</cargo.remote.password>
+		    </properties>
+		</configuration>
+		<deployables>
+		    <deployable>
+			<groupId>org.tektutor</groupId>
+			<artifactId>hello-tomcat-servlet</artifactId>
+			<type>war</type>
+			<properties>
+			    <context>/hello4</context>
+			</properties>
+		    </deployable>
+		</deployables>
+	    </configuration>
+	</plugin>
         </plugins>
     </build>
 
