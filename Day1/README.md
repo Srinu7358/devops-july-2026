@@ -779,9 +779,14 @@ curl --user deployer:admin@123 \
   "http://localhost:8100/manager/text/deploy?path=/hello3&update=true"
 ```
 
+In case you wish to access from terminal
+```
+curl http://localhost:8100/hello3/hello?name=Tomcat11
+```
+
 Access from web browser
 ```
-http://localhost:8100/hello3/hello?name=Jegan
+http://localhost:8100/hello3/hello?name=Tomcat11
 ```
 
 Management console url
