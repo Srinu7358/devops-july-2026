@@ -718,7 +718,12 @@ Remove existing ROOT
 ```
 #Not removing, let's just rename the folder
 sudo systemctl stop tomcat11
-sudo mv /opt/tomcat11/webapps/ROOT /opt/tomcat11/ROOT1
+
+# In case already someone has deploy their application at root context
+# Let's ensure we are not deleting it, hence let's take a backup before we
+# Deploy our application in the root context
+# In case you get an error saying no such file or directory, ignore it
+sudo mv /opt/tomcat11/webapps/ROOT /opt/tomcat11/ROOT1  
 sudo mv /opt/tomcat11/webapps/ROOT.war /opt/tomcat11/ROOT.war1
 ```
 
