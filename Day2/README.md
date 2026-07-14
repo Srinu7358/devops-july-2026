@@ -52,7 +52,7 @@ for N in node1 node2 node3; do
 done
 
 sudo chown -R tomcat:tomcat /srv/node1 /srv/node2 /srv/node3
-sudo chmod 750 -R tomcat:tomcat /srv/node1/conf /srv/node2/conf /srv/node3/conf 
+sudo chmod 750 -R /srv/node1/conf /srv/node2/conf /srv/node3/conf 
 ```
 
 Let's configure the /srv/node1/conf/server.xml
