@@ -774,7 +774,7 @@ sudo systemctl restart tomcat11
 
 Deploy with curl
 ```
-curl --user deployer:S3cret-Change-Me \
+curl --user deployer:admin@123 \
   --upload-file ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
   "http://localhost:8100/manager/text/deploy?path=/hello3&update=true"
 ```
@@ -787,10 +787,10 @@ http://localhost:8100/hello3/hello?name=Jegan
 Management console url
 ```
 http://localhost:8100/manager/html
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/list"
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/reload?path=/hello3"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/list"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/reload?path=/hello3"
 #Undeploy
-curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/undeploy?path=/hello3"
+curl --user deployer:admin@123 "http://localhost:8100/manager/text/undeploy?path=/hello3"
 ```
 
 ## Lab - Deploy application using Maven
