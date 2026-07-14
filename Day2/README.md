@@ -22,6 +22,7 @@
 ## Lab - Setup a reverse proxy in front of a Tomcat Webserver and Tomcat AppServer instances
 Lets check the below before we proceed
 <pre>
+sudo su -
 ls -l /opt/tomcat11/bin/catalina.sh
 ls -l /opt/tomcat11/lib/catalina.jar
 ls -l /opt/tomcat11/lib/servlet-api.jar
