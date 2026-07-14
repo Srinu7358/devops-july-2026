@@ -36,6 +36,92 @@ mvn --version
 apache2 -v || sudo apt install -y apache2
 </pre>
 
+Let's create the tomcat user and create node1, node2 and node3 directories
+```
+sudo useradd -r -s /usr/bin/nologin tomcat 2>/dev/null || echo "user tomcat already exists"
+
+for N in node1 node2 node3; do
+  sudo mkdir -p /srv/$N/{bin,conf,logs,webapps,work,temp}
+
+  sudo cp /opt/tomcat11/conf/web.xml             /srv/$N/conf/
+  sudo cp /opt/tomcat11/conf/context.xml         /srv/$N/conf/
+  sudo cp /opt/tomcat11/conf/logging.properties  /srv/$N/conf/
+  sudo cp /opt/tomcat11/conf/catalina.properties /srv/$N/conf/
+  sudo cp /opt/tomcat11/conf/tomcat-users.xml    /srv/$N/conf/
+done
+
+sudo chown -R tomcat:tomcat /srv/node1 /srv/node2 /srv/node3
+sudo chmod 750 -R tomcat:tomcat /srv/node1/conf /srv/node2/conf /srv/node3/conf 
+```
+
+Let's configure the /srv/node1/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9005" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+  <Service name="Catalina">
+    <Connector port="9081" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               maxThreads="150" />
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node1">
+      <Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="node1_access" suffix=".log"
+               pattern="NODE1 %h %t $quot;%r&quot; %s %b %D" />
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Let's configure the /srv/node2/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9005" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+  <Service name="Catalina">
+    <Connector port="9081" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               maxThreads="150" />
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node2">
+      <Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="node2_access" suffix=".log"
+               pattern="NODE2 %h %t $quot;%r&quot; %s %b %D" />
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Let's configure the /srv/node3/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9005" shutdown="SHUTDOWN">
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+  <Service name="Catalina">
+    <Connector port="9081" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               maxThreads="150" />
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node3">
+      <Host name="localhost"  appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+        <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"
+               prefix="node3_access" suffix=".log"
+               pattern="NODE3 %h %t $quot;%r&quot; %s %b %D" />
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+
+
 ## Lab - Setup up a three-instance Tomcat topology
 <pre>
   
