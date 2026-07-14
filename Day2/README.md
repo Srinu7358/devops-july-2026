@@ -129,7 +129,7 @@ Let's configure the setenv.sh for node1, node2 and node3 tomcat servers
 export JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
 
 export CATALINA_OPTS="-Xms256m -Xmx512m \
-  -XX:+useG1GC \
+  -XX:+UseG1GC \
   -Djava.awt.headless=true \
   -Dnode.name=node1"
 ```
@@ -140,7 +140,7 @@ export CATALINA_OPTS="-Xms256m -Xmx512m \
 export JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
 
 export CATALINA_OPTS="-Xms256m -Xmx512m \
-  -XX:+useG1GC \
+  -XX:+UseG1GC \
   -Djava.awt.headless=true \
   -Dnode.name=node2"
 ```
@@ -151,7 +151,7 @@ export CATALINA_OPTS="-Xms256m -Xmx512m \
 export JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
 
 export CATALINA_OPTS="-Xms256m -Xmx512m \
-  -XX:+useG1GC \
+  -XX:+UseG1GC \
   -Djava.awt.headless=true \
   -Dnode.name=node3"
 ```
