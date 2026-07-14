@@ -665,9 +665,11 @@ systemctl status tomcat9 tomcat10 tomcat11 --no-pager | grep -E 'tomcat|Active'
 
 Deploy
 ```
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat9/target/hello-cdi-servlet.war /opt/tomcat9/webapps/
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat10/webapps/
-sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat11/webapps/
+cd ~/devops-july-2025/Day1/tomcat10/hello-servlet
+mvn clean package
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat9/webapps/
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
+sudo cp target/hello-tomcat-servlet.war /opt/tomcat11/webapps/
 ```
 
 ## Lab - Deploying using exploded directory
