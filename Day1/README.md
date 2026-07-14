@@ -594,7 +594,10 @@ sudo tee /opt/tomcat11/bin/setenv.sh > /dev/null <<EOF
 export JAVA_HOME=$JDK
 export CATALINA_OPTS="-Xms512m -Xmx1024m"
 EOF
+```
 
+Manage ownership of setenv.sh file
+```
 sudo chown tomcat11:tomcat11 /opt/tomcat11/bin/setenv.sh
 sudo chmod +x /opt/tomcat11/bin/setenv.sh
 cat /opt/tomcat11/bin/setenv.sh
