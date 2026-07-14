@@ -678,6 +678,14 @@ sudo cp target/hello-tomcat-servlet.war /opt/tomcat10/webapps/
 sudo cp target/hello-tomcat-servlet.war /opt/tomcat11/webapps/
 ```
 
+Test
+```
+curl "http://localhost:8080/hello-tomcat-servlet/hello?name=Tomcat9 !"
+curl "http://localhost:8090/hello-tomcat-servlet/hello?name=Tomcat10 !"
+curl "http://localhost:8100/hello-tomcat-servlet/hello?name=Tomcat11 !"
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d8135444-8835-4a66-9ff9-32550b4f428b" />
+
 ## Lab - Deploying using exploded directory
 ```
 sudo mkdir -p /opt/tomcat11/webapps/hello2
