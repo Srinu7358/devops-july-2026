@@ -668,7 +668,9 @@ systemctl status tomcat9 tomcat10 tomcat11 --no-pager | grep -E 'tomcat|Active'
 
 Deploy
 ```
-cd ~/devops-july-2026/Day1/tomcat9/hello-servlet
+cd ~/devops-july-2026
+git pull
+cd Day1/tomcat9/hello-servlet
 mvn clean package
 sudo cp target/hello-tomcat-servlet.war /opt/tomcat9/webapps/
 
