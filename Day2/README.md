@@ -245,6 +245,10 @@ WantedBy=multi-user.target
 
 Let's manage the services of node1, node2 and node3
 ```
+sudo sed -i 's/\$quot;/\&quot;/g' /srv/node1/conf/server.xml
+sudo sed -i 's/\$quot;/\&quot;/g' /srv/node2/conf/server.xml
+sudo sed -i 's/\$quot;/\&quot;/g' /srv/node3/conf/server.xml
+
 sudo systemctl daemon-reload
 sudo systemctl enable tomcat-node1 tomcat-node2 tomcat-node3
 sudo systemctl start tomcat-node1 tomcat-node2 tomcat-node3
