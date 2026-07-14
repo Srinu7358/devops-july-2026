@@ -600,7 +600,7 @@ Manage ownership of setenv.sh file
 ```
 sudo chown tomcat11:tomcat11 /opt/tomcat11/bin/setenv.sh
 sudo chmod u+x /opt/tomcat11/bin/setenv.sh
-cat /opt/tomcat11/bin/setenv.sh
+sudo cat /opt/tomcat11/bin/setenv.sh
 ```
 
 Change the ports
