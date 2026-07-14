@@ -423,3 +423,250 @@ sudo tail -f /opt/tomcat10/logs/catalina.out
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/9cf8812f-a338-48ce-9a15-25ef86646f30" />
 
+## Lab - Install Tomcat11 in Ubuntu
+```
+sudo mkdir -p /opt/tomcat11
+sudo useradd -r -m -U -d /opt/tomcat11 -s /bin/false tomcat11
+```
+
+Download and Install Tomcat 11
+```
+cd /tmp
+wget https://dlcdn.apache.org/tomcat/tomcat-11/v11.0.24/bin/apache-tomcat-11.0.24.tar.gz
+sudo tar -xzf apache-tomcat-11.0.24.tar.gz -C /opt/tomcat11 --strip-components=1
+```
+
+Manage ownership
+```
+sudo chown -R tomcat11:tomcat11 /opt/tomcat11
+sudo chmod -R u+x /opt/tomcat11/bin
+
+JDK=$(readlink -f "$(which java)" | sed 's:/bin/java::')
+sudo tee /opt/tomcat11/bin/setenv.sh > /dev/null <<EOF
+export JAVA_HOME=$JDK
+export CATALINA_OPTS="-Xms512m -Xmx1024m"
+EOF
+
+sudo chown tomcat11:tomcat11 /opt/tomcat11/bin/setenv.sh
+sudo chmod +x /opt/tomcat11/bin/setenv.sh
+cat /opt/tomcat11/bin/setenv.sh
+```
+
+Change the ports
+```
+sudo nano /opt/tomcat11/conf/server.xml
+```
+
+Shutdown port from 8005 to 8007
+```
+<Server port="8007" shutdown="SHUTDOWN">
+```
+Http port from 8080 to 8100
+```
+<Connector port="8100" protocol="HTTP/1.1"
+           connectionTimeout="20000"
+           redirectPort="8443" />
+```
+
+AJP Connector Port if currently uncommented from 8009 to 8011
+
+Create a service
+```
+sudo tee /etc/systemd/system/tomcat11.service > /dev/null <<'EOF'
+[Unit]
+Description=Apache Tomcat 11
+After=network.target
+
+[Service]
+Type=forking
+
+User=tomcat11
+Group=tomcat11
+
+Environment="JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64"
+Environment="CATALINA_HOME=/opt/tomcat11"
+Environment="CATALINA_BASE=/opt/tomcat11"
+Environment="CATALINA_PID=/opt/tomcat11/temp/tomcat.pid"
+
+ExecStart=/opt/tomcat11/bin/startup.sh
+ExecStop=/opt/tomcat11/bin/shutdown.sh
+
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+Manage the service
+```
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat11
+sudo systemctl start tomcat11
+sudo systemctl status tomcat11
+```
+
+Verify if all 3 Tomcats are running
+```
+curl http://localhost:8080/   # Tomcat 9
+curl http://localhost:8090/   # Tomcat 10
+curl http://localhost:8100/   # Tomcat 11
+sudo ss -ltnp | grep -E '8080|8090|8100|8005|8006|8007'
+systemctl status tomcat9 tomcat10 tomcat11 --no-pager | grep -E 'tomcat|Active'
+```
+
+Deploy
+```
+sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat9/target/hello-cdi-servlet.war /opt/tomcat9/webapps/
+sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat10/webapps/
+sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war /opt/tomcat11/webapps/
+```
+
+## Lab - Deploying using exploded directory
+```
+sudo mkdir -p /opt/tomcat11/webapps/hello2
+sudo unzip ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+  -d /opt/tomcat11/webapps/hello2
+```
+
+Fix ownership
+```
+sudo chown -R tomcat11:tomcat11 /opt/tomcat11/webapps/hello2
+```
+
+Deploy
+```
+sudo tail -f /opt/tomcat11/logs/catalina.out
+sudo systemctl restart tomcat11
+curl "http://localhost:8100/hello2/hello?name=Jegan"
+```
+
+Undeploy
+```
+sudo rm -rf /opt/tomcat11/webapps/hello2
+```
+
+## Lab - Deploy using ROOT context
+
+Remove existing ROOT
+```
+#Not removing, let's just rename the folder
+sudo systemctl stop tomcat11
+sudo mv /opt/tomcat11/webapps/ROOT /opt/tomcat11/ROOT1
+sudo mv /opt/tomcat11/webapps/ROOT.war /opt/tomcat11/ROOT.war1
+```
+
+Copy your war as ROOT.war
+```
+sudo cp ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+  /opt/tomcat11/webapps/ROOT.war
+
+sudo chown tomcat11:tomcat11 /opt/tomcat11/webapps/ROOT.war
+```
+
+Start and let it deploy
+```
+sudo systemctl start tomcat11
+sudo tail -f /opt/tomcat11/logs/catalina.out
+```
+
+Access the page
+```
+curl "http://localhost:8100/hello?name=Jegan"
+```
+
+## Lab - Deploy application using manager-script
+
+Enable manager-script user
+```
+sudo nano /opt/tomcat11/conf/tomcat-users.xml
+```
+
+Inside the <tomcat-users> element add an user with both roles
+```
+<role rolename="manager-script"/>
+<role rolename="manager-gui"/>
+<user username="deployer" password="S3cret-Change-Me" roles="manager-script,manager-gui"/>
+```
+
+Allow remote access
+```
+sudo nano /opt/tomcat11/webapps/manager/META-INF/context.xml
+<Valve className="org.apache.catalina.valves.RemoteAddrValve"
+       allow="127\.\d+\.\d+\.\d+|::1|0:0:0:0:0:0:0:1|192\.168\.\d+\.\d+"/>
+```
+
+Restart tomcat service
+```
+sudo systemctl restart tomcat11
+```
+
+Deploy with curl
+```
+curl --user deployer:S3cret-Change-Me \
+  --upload-file ~/advanced-devops-2026/.../hello-cdi-servlet-tomcat10-11/target/hello-cdi-servlet.war \
+  "http://localhost:8100/manager/text/deploy?path=/hello3&update=true"
+```
+
+Access from web browser
+```
+http://localhost:8100/hello3/hello?name=Jegan
+```
+
+Management console url
+```
+http://localhost:8100/manager/html
+curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/list"
+curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/reload?path=/hello3"
+#Undeploy
+curl --user deployer:S3cret-Change-Me "http://localhost:8100/manager/text/undeploy?path=/hello3"
+```
+
+## Lab - Deploy application using Maven
+Add this in the pom.xml
+```
+<plugin>
+    <groupId>org.codehaus.cargo</groupId>
+    <artifactId>cargo-maven3-plugin</artifactId>
+    <version>1.10.20</version>
+    <configuration>
+        <container>
+            <containerId>tomcat11x</containerId>
+            <type>remote</type>
+        </container>
+        <configuration>
+            <type>runtime</type>
+            <properties>
+                <cargo.remote.uri>http://localhost:8100/manager/text</cargo.remote.uri>
+                <cargo.remote.username>deployer</cargo.remote.username>
+                <cargo.remote.password>S3cret-Change-Me</cargo.remote.password>
+            </properties>
+        </configuration>
+        <deployables>
+            <deployable>
+                <groupId>org.tektutor</groupId>
+                <artifactId>hello-cdi-servlet-tomcat10-11</artifactId>
+                <type>war</type>
+                <properties>
+                    <context>/hello4</context>
+                </properties>
+            </deployable>
+        </deployables>
+    </configuration>
+</plugin>
+```
+
+Deploy
+```
+mvn clean package cargo:deploy
+```
+
+Redeploy
+```
+mvn clean package cargo:redeploy
+```
+
+Verify
+```
+curl "http://localhost:8100/hello4/hello?name=Jegan"
+```
