@@ -215,4 +215,15 @@ exit
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/252336d3-34ba-42a5-8fda-fa13208b4971" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e46148c4-24c4-455c-b4b5-87ff414fb76b" />
 
+## Lab - Install Ansible core in Ubuntu
+```
+sudo apt install ansible-core -y
+ansible --version
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/25182dce-7514-4bbd-a843-b6c2461e7395" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/aa6e01d2-1b7e-429d-8d50-03a6289312f1" />
 
+## Lab - See if ansible is able your ansible node containers
+```
+
+```
