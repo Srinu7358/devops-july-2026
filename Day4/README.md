@@ -321,3 +321,24 @@ kubectl -n awx create secret generic awx-admin-password \
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7f40dabd-bff7-4674-9bff-5320627e6104" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/88a2cb4e-829f-41a0-8c78-842dc82c09b4" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/222f50c2-f0ed-4b63-ba21-2375375eb43f" />
+
+## Lab - Install Ansible Tower CLI tool
+```
+To install tower-cli in Ubuntu
+```
+sudo apt update && sudo apt install -y python3 python3-pip
+pip install ansible-tower-cli --break-system-packages --upgrade
+```
+
+## Lab - Invoking Ansible Tower Job Template from command-line ( used for Test automation )
+```
+tower-cli config username admin
+tower-cli config password wv8zQPujAdLauJt32U3wznpnJyKuiCcN
+tower-cli config verify_ssl false
+tower-cli config insecure true
+tower-cli config host http://192.168.49.2:30090
+tower-cli login admin
+tower-cli project list
+tower-cli job list
+tower-cli tower-cli job launch -J "Invoke Install Apache Playbook"
+```
