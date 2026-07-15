@@ -311,10 +311,160 @@ sudo systemctl start tomcat-node2
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/78482014-45af-470a-a0c5-985dd3914833" />
 
-## Lab - Setup up a three-instance Tomcat topology
+## Lab - Load Balancing with Sticky Sessions
+Pre-requisite - you should have completed the previous exercise.
 <pre>
-  
+- In the previous lab, we created 3 independent instances of tomcat
+- We accessed those web servers independently using their respective ports
+- In this lab, we are going to add a load-balancer in front of those 3 tomcat node instances using Httpd
 </pre>
+
+Let's build the counter application
+```
+cd ~/devops-july-2026
+git pull
+cd Day2/counter-app
+mvn clean package
+```
+
+Deploy the counter application into tomcat-node1, tomcat-node2 and tomcat-node3 servers
+```
+for N in node1 node2 node3; do
+  sudo cp target/counter.war /srv/$N/webapps/
+  sudo chown tomcat:tomcat /srv/$N/webapps/counter.war
+done
+```
+
+Let's verify if our counter application is running in tomcat-node1, tomcat-node2 and tomcat-node3 servers
+```
+sleep 15
+
+curl http://localhost:9081/counter/count
+curl http://localhost:9082/counter/count
+curl http://localhost:9083/counter/count
+```
+
+Let's enable the httpd modules to setup httpd as the load balancer
+```
+sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests slotmem_shm headers status
+```
+
+Let's configure the httpd configuration to include our tomcat-node1, tomcat-node2 and tomcat-node3 servers
+/etc/apache2/sites-available/tomcat-cluster.conf
+```
+<VirtualHost *:80>
+
+    ServerName localhost
+
+    ProxyRequests Off
+    ProxyPreserveHost On
+
+    # =================================================================
+    #  The balancer. One BalancerMember per Tomcat node.
+    #
+    #  route=nodeN MUST match jvmRoute=nodeN in that node's server.xml,
+    #  exactly, character for character. That is the entire mechanism
+    #  behind sticky sessions: Tomcat writes the route into the session
+    #  cookie, and httpd reads it back out.
+    # =================================================================
+    <Proxy "balancer://tomcatcluster">
+
+        BalancerMember "http://127.0.0.1:9081" route=node1
+        BalancerMember "http://127.0.0.1:9082" route=node2
+        BalancerMember "http://127.0.0.1:9083" route=node3
+
+        ProxySet stickysession=JSESSIONID|jsessionid
+        ProxySet lbmethod=byrequests
+
+    </Proxy>
+
+    ProxyPass        /counter  balancer://tomcatcluster/counter
+    ProxyPassReverse /counter  balancer://tomcatcluster/counter
+
+    RequestHeader set X-Forwarded-Proto "http"
+
+    # =================================================================
+    #  Live view of every balancer member and its state.
+    #  Locked to localhost. Never expose this.
+    # =================================================================
+    <Location "/balancer-manager">
+        SetHandler balancer-manager
+        Require ip 127.0.0.1
+        Require ip ::1
+    </Location>
+
+    # The ! means "do NOT proxy this path". Without this line, httpd
+    # forwards /balancer-manager to Tomcat and Tomcat returns 404.
+    ProxyPass /balancer-manager !
+
+    ErrorLog  ${APACHE_LOG_DIR}/cluster_error.log
+    CustomLog ${APACHE_LOG_DIR}/cluster_access.log combined
+
+</VirtualHost>
+```
+
+Let's makes sure the httpd does't server its html pages by disabling them
+```
+sudo a2dissite 000-default tiers 2>/dev/null
+sudo a2ensite tomcat-cluster
+sudo apachectl configtest        # must print exactly: Syntax OK
+sudo systemctl reload apache2
+```
+
+Verify if the tomcat-node1, tomcat-node2 and tomcat-node3 all report ok under 
+loadbalancer on your web browser
+```
+http://localhost/balancer-manager
+```
+
+Demonstrates sticky sessions work
+```
+rm -f /tmp/cookies.txt
+
+for i in $(seq 1 5); do
+  curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count \
+    | grep -E "Served by node|Hit count"
+  echo "---"
+done
+
+grep JSESSIONID /tmp/cookies.txt
+```
+
+Note
+<pre>
+- Each request that lands on the same Tomcat node bumps up the counter
+</pre>  
+
+Let's kill the node that takes most request
+```
+rm -f /tmp/cookies.txt
+
+for i in $(seq 1 7); do
+  curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count > /dev/null
+done
+
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+```
+
+Now, kill the node reported by the above curl
+```
+sudo systemctl stop tomcat-node2
+
+# Same cookie file. Same user. Nothing changed on the client side at all.
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+```
+
+Note
+<pre>
+- The apache httpd loadbalancer nicely handled the node failure
+- The Loadbalancer detected the node was down and failed over to other node
+</pre> 
+
+Bring back the node2
+```
+sudo systemctl start tomcat-node2    # bring it back before Lab 4
+```
+
 
 ## Lab - Tomcat Clustering and Session Replication
 <pre>
