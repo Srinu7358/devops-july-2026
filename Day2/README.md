@@ -589,6 +589,20 @@ sudo sed -i 's/^Restart=on-failure/Restart=no/' /etc/systemd/system/tomcat-node3
 sudo systemctl daemon-reload
 ```
 
+Make sure the counter application is deployed in all servers
+```
+cd ~/devops-july-2026
+git pull
+cd Day2/counter-app
+mvn clean package
+sudo cp target/counter.war /srv/node1/webapps/
+sudo cp target/counter.war /srv/node2/webapps/
+sudo cp target/counter.war /srv/node3/webapps/
+chown tomcat:tomcat /srv/node1/webapps/counter.war
+chown tomcat:tomcat /srv/node2/webapps/counter.war
+chown tomcat:tomcat /srv/node3/webapps/counter.war
+```
+
 Let's add the cluster elements in /srv/node1/conf/server.xml using vim/gedit/nano/visual studio code or something
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -633,14 +647,17 @@ Let's add the cluster elements in /srv/node1/conf/server.xml using vim/gedit/nan
           <!-- I list my PEERS here, never myself.
                node1 lists node2 (port 4001) and node3 (port 4002). -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4000"
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4001" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4002" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <!-- MANDATORY with static membership. Without it, a dead node
@@ -718,14 +735,17 @@ Let's update node2 /srv/node2/conf/server.xml
 
           <!-- node2 lists node1 (4000) and node3 (4002) -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4001"
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4000" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4002" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
@@ -801,14 +821,17 @@ Let's update node3 /srv/node3/conf/server.xml
 
           <!-- node3 lists node1 (4000) and node2 (4001) -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4002"
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4000" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4001" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
@@ -842,6 +865,25 @@ Let's update node3 /srv/node3/conf/server.xml
 </Server>
 ```
 
+Let's create a web.xml in each server
+```
+# adjust the path once find shows where /counter really lives
+for n in 1 2 3; do
+  d=/srv/node$n/webapps/counter/WEB-INF
+  sudo mkdir -p "$d"
+  sudo tee "$d/web.xml" >/dev/null <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+             https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+  <distributable/>
+</web-app>
+EOF
+done
+```
+
 Restart and watch the cluster forming
 ```
 sudo systemctl restart tomcat-node1
@@ -852,6 +894,9 @@ sudo systemctl restart tomcat-node3
 sleep 10
 sudo grep -iE "member|cluster|clustering" /srv/node1/logs/catalina.$(date +%F).log | tail -20
 ```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7bbaf97a-1936-454b-b26f-b005d1f43720" />
+
 
 Make sure all nodes in the cluster
 ```
@@ -883,11 +928,13 @@ done
 
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/010f73c9-19b6-4ce8-8142-05e3de20696d" />
 
 On a different terminal, run this
 ```
 sudo tail -f /srv/node2/logs/catalina.$(date +%F).log
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d1e34b77-e046-4023-b1da-ecbdcfe2feda" />
 
 kill the node that was named by the curl output
 ```
@@ -896,6 +943,18 @@ sudo systemctl stop tomcat-node1
 # Same cookie. Same user. The node that owned this session no longer exists.
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/5543eb76-a2b8-4859-baba-f576954b37d8" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/2fd6ab64-ceb2-4211-91dd-84465b7d3772" />
+
+Try this
+```
+curl -s -c jar.txt -b jar.txt http://127.0.0.1:9081/counter/count | grep -E "count|Session ID"
+curl -s -c jar.txt -b jar.txt http://127.0.0.1:9081/counter/count | grep -E "count|Session ID"
+curl -s -b jar.txt http://127.0.0.1:9082/counter/count | grep -E "count|Session ID"
+curl -s -b jar.txt http://127.0.0.1:9083/counter/count | grep -E "count|Session ID"
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/4bca94e6-cec2-4110-974f-c36fd9f5e597" />
+
 
 ## Lab - Apache Httpd Reverse Proxy Server with Apache Tomcat Web Server and Apache Tomcat App Server
 
@@ -969,7 +1028,7 @@ Let's configure the app tier - /srv/app/conf/server.xml
 
     <Connector port="9092"
                protocol="HTTP/1.1"
-               address="127.0.0.1"
+               address="127.0.0.1"12D4DDDD963A44E3EBFE2214106A63AD.node2
                connectionTimeout="20000"
                maxThreads="200"
                proxyName="localhost"
