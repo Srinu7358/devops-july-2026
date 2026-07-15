@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copy to /srv/web/conf/server.xml -->
+<Server port="9015" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9091"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="150"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost">
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="web_access"
+               suffix=".log"
+               pattern="WEB-TIER %h %t &quot;%r&quot; %s %b %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>

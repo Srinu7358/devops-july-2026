@@ -1,0 +1,18 @@
+[Unit]
+Description=Tomcat App Tier (HTTP 9092)
+After=network.target
+
+[Service]
+Type=forking
+User=tcapp
+Group=tcapp
+Environment="CATALINA_HOME=/opt/tomcat11"
+Environment="CATALINA_BASE=/srv/app"
+Environment="CATALINA_PID=/srv/app/temp/tomcat.pid"
+ExecStart=/opt/tomcat11/bin/startup.sh
+ExecStop=/opt/tomcat11/bin/shutdown.sh
+Restart=on-failure
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
