@@ -224,6 +224,11 @@ ansible --version
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/aa6e01d2-1b7e-429d-8d50-03a6289312f1" />
 
 ## Lab - See if ansible is able your ansible node containers
+This exericse confirms if ansible is able to communicate with the ubuntu1 and ubuntu2 ansible nodes.
 ```
-
+cd ~/devops-july-2026
+git pull
+cd Day4/ansible/inventory
+ansible -i hosts all -m ping
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/bb74664c-f4a6-419d-9375-dc8fb12c28fa" />
