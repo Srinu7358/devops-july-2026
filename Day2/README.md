@@ -495,6 +495,13 @@ Note
 <pre>
 - The apache httpd loadbalancer nicely handled the node failure
 - The Loadbalancer detected the node2 was down and failed over to node3
+- But note there is a new session id, what this means is?
+  - a statefull application will forget whatever transaction happened earlier
+  - assume you added 3 items in shopping cart, all this was handled by node1
+  - node1 crashed, loadbalancer failedover to node3 and created new session
+  - now, all the shopping cart items are stored in node1, node3 is not aware of it
+  - node3 will show empty cart, hence we need data-replication in all 3 nodes
+  - that is what you are going to learn in next lab exercise
 </pre> 
 
 Bring back the node2
@@ -507,8 +514,388 @@ curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cd73a190-523d-4171-bbd2-d99a56a87227" />
 
-
 ## Lab - Tomcat Clustering and Session Replication
+Pre-requisite
 <pre>
-  
+- the previous 2 lab exercises must be completed
+- there are 2 types of replication supported in Tomcat
+  - DeltaManager
+  - BackupManager
+- DeltaManager
+  -  replicates every session to every node
+  -  a session created on node1 is copied to node2 and node3
+  -  all three hold it in heap
+  -  it is called DeltaManager because after the first full copy it sends only the changed attributes
+  -  as long as at least one node is still alive, no session is lost
+  -  session capacity is limited to JVM's Heap Size
+  -  as we add more nodes, more Heap is required, nodes upto 4 is good
+- BackupManager
+  - keeps one backup copy
+  - each session has exactly one primary node and one backup node
+  - every other node holds only a proxy entry
+    - a note saying "session X lives on node2, backed up on node5"
+  - if the primary and the backup both die, the session is gone permanently
+  - good for nodes count 4-20+
+- Websphere data replication has the same 2 modes
+  - peer to peer is nothing but DeltaManager
+  - client/server with replica count is BackupManager
+- Tomcat instances has to find each other in a cluster
+- it can be done in 2 ways
+  - multicast
+    - every node broadcasts a UDP heartbeat to a multicast group every 500ms
+    - if a peer stops heartbeating for 3000ms it is dropped
+  - static membership
+    - you list every tomcat node peer explicitly
+    - each time a new node is adding we must manually configure 
+    - more nodes in the cluster,more manual edits required on each node
+    - communication is over TCP
+    - No UDP, no multicast, no cooperation needed from the network team
 </pre>
+
+
+Pre-flight
+```
+echo "=== The three instances must already be running ==="
+sudo systemctl is-active tomcat-node1 tomcat-node2 tomcat-node3
+
+echo "=== The clustering jars must exist in CATALINA_HOME ==="
+ls -l /opt/tomcat11/lib/catalina-ha.jar       # SimpleTcpCluster, DeltaManager, BackupManager
+ls -l /opt/tomcat11/lib/catalina-tribes.jar   # the group communication layer
+
+echo "=== The Tribes receiver ports must be FREE ==="
+sudo ss -tlnp | grep -E ':(4000|4001|4002)\b'
+echo "    ^ must print NOTHING"
+
+echo "=== counter.war must contain <distributable/> ==="
+unzip -p /srv/node1/webapps/counter.war WEB-INF/web.xml | grep distributable
+
+echo "=== jvmRoute must already be set ==="
+grep jvmRoute /srv/node1/conf/server.xml
+grep jvmRoute /srv/node2/conf/server.xml
+grep jvmRoute /srv/node3/conf/server.xml
+```
+
+Change Restart=on-failure to Restart=no
+<pre>
+- if you leave Restart=on-failure in previous labs, systemd brings the killed node 
+  back up seconds after you stop it, and your failover demonstration is over before 
+  we have finished refreshing our terminal screen
+- on-production, Restart=on-failure
+</pre>
+```
+sudo sed -i 's/^Restart=on-failure/Restart=no/' /etc/systemd/system/tomcat-node1.service
+sudo sed -i 's/^Restart=on-failure/Restart=no/' /etc/systemd/system/tomcat-node2.service
+sudo sed -i 's/^Restart=on-failure/Restart=no/' /etc/systemd/system/tomcat-node3.service
+sudo systemctl daemon-reload
+```
+
+Let's add the cluster elements in /srv/node1/conf/server.xml using vim/gedit/nano/visual studio code or something
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9005" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9081"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="150"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node1">
+
+      <Cluster className="org.apache.catalina.ha.tcp.SimpleTcpCluster"
+               channelSendOptions="6">
+
+        <Manager className="org.apache.catalina.ha.session.DeltaManager"
+                 expireSessionsOnShutdown="false"
+                 notifyListenersOnReplication="true" />
+
+        <Channel className="org.apache.catalina.tribes.group.GroupChannel">
+
+          <!-- The port I LISTEN on for replication traffic. -->
+          <Receiver className="org.apache.catalina.tribes.transport.nio.NioReceiver"
+                    address="127.0.0.1"
+                    port="4000"
+                    autoBind="0"
+                    selectorTimeout="5000"
+                    maxThreads="6" />
+
+          <Sender className="org.apache.catalina.tribes.transport.ReplicationTransmitter">
+            <Transport className="org.apache.catalina.tribes.transport.nio.PooledParallelSender" />
+          </Sender>
+
+          <!-- I list my PEERS here, never myself.
+               node1 lists node2 (port 4001) and node3 (port 4002). -->
+          <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4001" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4002" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+          </Membership>
+
+          <!-- MANDATORY with static membership. Without it, a dead node
+               stays in the member list forever and replication blocks. -->
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor" />
+
+        </Channel>
+
+        <Valve className="org.apache.catalina.ha.tcp.ReplicationValve"
+               filter="" />
+
+        <ClusterListener className="org.apache.catalina.ha.session.ClusterSessionListener" />
+
+      </Cluster>
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="node1_access"
+               suffix=".log"
+               pattern="NODE1 %h %t &quot;%r&quot; %s %S %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Let's update node2 /srv/node2/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9006" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9082"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="150"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node2">
+
+      <Cluster className="org.apache.catalina.ha.tcp.SimpleTcpCluster"
+               channelSendOptions="6">
+
+        <Manager className="org.apache.catalina.ha.session.DeltaManager"
+                 expireSessionsOnShutdown="false"
+                 notifyListenersOnReplication="true" />
+
+        <Channel className="org.apache.catalina.tribes.group.GroupChannel">
+
+          <Receiver className="org.apache.catalina.tribes.transport.nio.NioReceiver"
+                    address="127.0.0.1"
+                    port="4001"
+                    autoBind="0"
+                    selectorTimeout="5000"
+                    maxThreads="6" />
+
+          <Sender className="org.apache.catalina.tribes.transport.ReplicationTransmitter">
+            <Transport className="org.apache.catalina.tribes.transport.nio.PooledParallelSender" />
+          </Sender>
+
+          <!-- node2 lists node1 (4000) and node3 (4002) -->
+          <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4000" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4002" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+          </Membership>
+
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor" />
+
+        </Channel>
+
+        <Valve className="org.apache.catalina.ha.tcp.ReplicationValve"
+               filter="" />
+
+        <ClusterListener className="org.apache.catalina.ha.session.ClusterSessionListener" />
+
+      </Cluster>
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="node2_access"
+               suffix=".log"
+               pattern="NODE2 %h %t &quot;%r&quot; %s %S %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Let's update node3 /srv/node3/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9007" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9083"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="150"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost" jvmRoute="node3">
+
+      <Cluster className="org.apache.catalina.ha.tcp.SimpleTcpCluster"
+               channelSendOptions="6">
+
+        <Manager className="org.apache.catalina.ha.session.DeltaManager"
+                 expireSessionsOnShutdown="false"
+                 notifyListenersOnReplication="true" />
+
+        <Channel className="org.apache.catalina.tribes.group.GroupChannel">
+
+          <Receiver className="org.apache.catalina.tribes.transport.nio.NioReceiver"
+                    address="127.0.0.1"
+                    port="4002"
+                    autoBind="0"
+                    selectorTimeout="5000"
+                    maxThreads="6" />
+
+          <Sender className="org.apache.catalina.tribes.transport.ReplicationTransmitter">
+            <Transport className="org.apache.catalina.tribes.transport.nio.PooledParallelSender" />
+          </Sender>
+
+          <!-- node3 lists node1 (4000) and node2 (4001) -->
+          <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4000" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+            <Member className="org.apache.catalina.tribes.membership.StaticMember"
+                    host="127.0.0.1" port="4001" securePort="-1"
+                    domain="tektutor-cluster"
+                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+          </Membership>
+
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
+          <Interceptor className="org.apache.catalina.tribes.group.interceptors.MessageDispatchInterceptor" />
+
+        </Channel>
+
+        <Valve className="org.apache.catalina.ha.tcp.ReplicationValve"
+               filter="" />
+
+        <ClusterListener className="org.apache.catalina.ha.session.ClusterSessionListener" />
+
+      </Cluster>
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="node3_access"
+               suffix=".log"
+               pattern="NODE3 %h %t &quot;%r&quot; %s %S %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Restart and watch the cluster forming
+```
+sudo systemctl restart tomcat-node1
+sleep 5
+sudo systemctl restart tomcat-node2
+sleep 5
+sudo systemctl restart tomcat-node3
+sleep 10
+sudo grep -iE "member|cluster|clustering" /srv/node1/logs/catalina.$(date +%F).log | tail -20
+```
+
+Make sure all nodes in the cluster
+```
+for N in node1 node2 node3; do
+  echo -n "$N sees "
+  sudo grep -c memberAdded /srv/$N/logs/catalina.$(date +%F).log
+done
+```
+
+Expected to see number 2, if you see 0 the cluster is not formed
+
+When the cluster is formed, look at the log
+```
+sudo grep "clustering manager" /srv/node1/logs/catalina.$(date +%F).log
+```
+
+Check if receiver ports are listening
+```
+sudo ss -tlnp | grep -E ':(4000|4001|4002)\b'
+```
+
+Once the cluster is formed successfully
+```
+rm -f /tmp/cookies.txt
+
+for i in $(seq 1 7); do
+  curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count > /dev/null
+done
+
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+```
+
+On a different terminal, run this
+```
+sudo tail -f /srv/node2/logs/catalina.$(date +%F).log
+```
+
+kill the node that was named by the curl output
+```
+sudo systemctl stop tomcat-node1
+
+# Same cookie. Same user. The node that owned this session no longer exists.
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+```
+
+
+
