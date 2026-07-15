@@ -1,5 +1,149 @@
 # Day 4
 
+## Lab - 
+
+Read your Tomcat paths
+```
+systemctl cat tomcat-node1 | grep -E "CATALINA_HOME|JAVA_HOME|User"
+export CATALINA_HOME=/opt/tomcat11
+export TC_USER=tomcat
+```
+
+Create instances
+```
+for inst in webtier apptier; do
+  sudo mkdir -p /srv/$inst/{conf,logs,temp,webapps,work,bin}
+  sudo cp -r $CATALINA_HOME/conf/* /srv/$inst/conf/
+done
+sudo chown -R $TC_USER:$TC_USER /srv/webtier /srv/apptier
+```
+
+Configure Web-tier ports
+```
+sudo sed -i 's/port="8005"/port="9015"/' /srv/webtier/conf/server.xml
+sudo sed -i 's/port="8080"/port="9091"/' /srv/webtier/conf/server.xml
+sudo sed -i '/protocol="AJP\/1.3"/,/\/>/d' /srv/webtier/conf/server.xml
+```
+
+Configure App-tier ports
+```
+sudo sed -i 's/port="8005"/port="9016"/' /srv/apptier/conf/server.xml
+sudo sed -i 's/port="8080"/port="9092"/' /srv/apptier/conf/server.xml
+sudo sed -i '/protocol="AJP\/1.3"/,/\/>/d' /srv/apptier/conf/server.xml
+```
+
+Bind to loopback
+```
+sudo sed -i 's#\(<Connector port="9091" protocol="HTTP/1.1"\)#\1 address="127.0.0.1"#' /srv/webtier/conf/server.xml
+sudo sed -i 's#\(<Connector port="9092" protocol="HTTP/1.1"\)#\1 address="127.0.0.1"#' /srv/apptier/conf/server.xml
+```
+
+Check ports free
+```
+sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' && echo CLASH || echo "ports free"
+```
+
+Install systemd units (edit CATALINA_HOME/JAVA_HOME/User in both first)
+```
+sudo cp systemd/tomcat-webtier.service /etc/systemd/system/
+sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+Build
+```
+cd web-tier && mvn -q clean package && cd ..
+cd app-tier && mvn -q clean package && cd ..
+```
+
+Verify descriptor in WAR (must print WEB-INF/web.xml)
+```
+unzip -l web-tier/target/ROOT.war | grep -i web.xml
+unzip -l app-tier/target/ROOT.war | grep -i web.xml
+```
+
+Deploy web tier
+```
+sudo rm -rf /srv/webtier/webapps/ROOT /srv/webtier/webapps/ROOT.war
+sudo cp web-tier/target/ROOT.war /srv/webtier/webapps/
+sudo chown $TC_USER:$TC_USER /srv/webtier/webapps/ROOT.war
+```
+
+Deploy app tier
+```
+sudo rm -rf /srv/apptier/webapps/ROOT /srv/apptier/webapps/ROOT.war
+sudo cp app-tier/target/ROOT.war /srv/apptier/webapps/
+sudo chown $TC_USER:$TC_USER /srv/apptier/webapps/ROOT.war
+```
+
+Start (web tier first)
+```
+sudo systemctl start tomcat-webtier; sleep 5
+sudo systemctl start tomcat-apptier; sleep 5
+```
+
+Confirm push
+```
+sudo grep -i "push plugin" /srv/apptier/logs/catalina.$(date +%F).log
+curl -s http://127.0.0.1:9091/admin/allowlist
+```
+
+Push manually if empty
+```
+curl -s http://127.0.0.1:9092/admin/publish
+```
+
+Test A (expect app-tier text)
+```
+curl -s http://127.0.0.1:9091/api/products
+curl -s http://127.0.0.1:9091/api/orders
+```
+
+Test B (200 direct, 403 via gateway)
+```
+curl -si http://127.0.0.1:9092/api/internal/metrics | head -1
+curl -si http://127.0.0.1:9091/api/internal/metrics | head -1
+```
+
+One-shot check
+```
+./scripts/verify.sh
+```
+
+Test C (dynamic control)
+```
+sudo sed -i 's#/api/products,/api/orders#/api/products#' /srv/apptier/webapps/ROOT/WEB-INF/web.xml
+sleep 2
+curl -s http://127.0.0.1:9092/admin/publish
+curl -s http://127.0.0.1:9091/admin/allowlist
+curl -si http://127.0.0.1:9091/api/orders | head -1
+```
+
+Restore
+```
+sudo sed -i 's#<param-value>/api/products</param-value>#<param-value>/api/products,/api/orders</param-value>#' /srv/apptier/webapps/ROOT/WEB-INF/web.xml
+sleep 2
+curl -s http://127.0.0.1:9092/admin/publish
+```
+
+Enable on boot
+```
+sudo systemctl enable tomcat-webtier tomcat-apptier
+```
+
+Apache in front (optional)
+```
+echo 'ProxyPass        "/" "http://127.0.0.1:9091/"
+ProxyPassReverse "/" "http://127.0.0.1:9091/"' | sudo tee /etc/apache2/conf-available/pushgate.conf
+sudo a2enmod proxy proxy_http
+sudo a2enconf pushgate
+sudo systemctl reload apache2
+```
+
+
+
+
+
 ## Info - Configuration Management Tool
 <pre>
 - are used by System Administrator or DevOps engineers to automate their administrative activities
