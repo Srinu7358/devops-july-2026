@@ -234,3 +234,25 @@ cd Day4/ansible/inventory
 ansible -i hosts all -m ping
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/bb74664c-f4a6-419d-9375-dc8fb12c28fa" />
+
+## Lab - Running an ansible playbook that installs apache2 server in Ubuntu ansible nodes
+```
+cd ~/devops-july-2026
+git pull
+cd Day4/ansible/playbook
+cat hosts
+cat install-apache-playbook.yml
+
+ansible-playbook -i hosts install-apache-playbook.yml
+```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/1928f1bf-c8e0-47a3-819b-4306489462c0" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/18a3a1ea-2868-432c-bd31-574db437b1cc" />
+
+Accessing the web pages from apache running on ubuntu1 and ubuntu2 ansible nodes
+```
+curl http://localhost:8001
+curl http://localhost:8002
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0b8a73ae-d4fe-4b12-9f7c-fc7d9b1bcce6" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7461ea62-9f6e-46b1-8caa-3a14584cb754" />
