@@ -589,6 +589,20 @@ sudo sed -i 's/^Restart=on-failure/Restart=no/' /etc/systemd/system/tomcat-node3
 sudo systemctl daemon-reload
 ```
 
+Make sure the counter application is deployed in all servers
+```
+cd ~/devops-july-2026
+git pull
+cd Day2/counter-app
+mvn clean package
+sudo cp target/counter.war /srv/node1/webapps/
+sudo cp target/counter.war /srv/node2/webapps/
+sudo cp target/counter.war /srv/node3/webapps/
+chown tomcat:tomcat /srv/node1/webapps/counter.war
+chown tomcat:tomcat /srv/node2/webapps/counter.war
+chown tomcat:tomcat /srv/node3/webapps/counter.war
+```
+
 Let's add the cluster elements in /srv/node1/conf/server.xml using vim/gedit/nano/visual studio code or something
 ```
 <?xml version="1.0" encoding="UTF-8"?>
@@ -881,6 +895,9 @@ sleep 10
 sudo grep -iE "member|cluster|clustering" /srv/node1/logs/catalina.$(date +%F).log | tail -20
 ```
 
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7bbaf97a-1936-454b-b26f-b005d1f43720" />
+
+
 Make sure all nodes in the cluster
 ```
 for N in node1 node2 node3; do
@@ -911,11 +928,13 @@ done
 
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/010f73c9-19b6-4ce8-8142-05e3de20696d" />
 
 On a different terminal, run this
 ```
 sudo tail -f /srv/node2/logs/catalina.$(date +%F).log
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/b3a41e19-4102-4281-bd31-f86f815ea311" />
 
 kill the node that was named by the curl output
 ```
