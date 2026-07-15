@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+                             https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+
+  <display-name>Session Counter</display-name>
+
+  <!-- =================================================================
+       THIS SINGLE ELEMENT IS THE ONE THAT MATTERS (for Lab 4).
+
+       Without it, Tomcat will NOT replicate this application's
+       sessions, no matter how perfect the Cluster element is.
+       There is no warning. Replication simply does not happen.
+
+       There is no annotation for this. This is the ONLY reason this
+       application has a web.xml at all.
+       ================================================================= -->
+  <distributable/>
+
+  <session-config>
+    <session-timeout>30</session-timeout>
+  </session-config>
+
+</web-app>
