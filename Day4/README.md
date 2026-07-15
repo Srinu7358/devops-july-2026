@@ -229,6 +229,8 @@ This exericse confirms if ansible is able to communicate with the ubuntu1 and ub
 cd ~/devops-july-2026
 git pull
 cd Day4/ansible/inventory
+
+# Run ansible ad-hoc command to ping ubuntu1 and ubuntu2 ansible nodes
 ansible -i hosts all -m ping
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/bb74664c-f4a6-419d-9375-dc8fb12c28fa" />
