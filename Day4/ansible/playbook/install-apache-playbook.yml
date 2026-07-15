@@ -1,0 +1,8 @@
+- name: This playbook will install apache2 server in ubuntu1 and ubuntu2 ansible nodes
+  hosts: all
+  tasks:
+  - name: Install apache2
+    apt: name=apache2 state=latest
+
+  - name: Start apache2 service
+    service: name=apache2 state=started enabled=true
