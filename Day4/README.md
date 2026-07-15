@@ -256,3 +256,62 @@ curl http://localhost:8002
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0b8a73ae-d4fe-4b12-9f7c-fc7d9b1bcce6" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7461ea62-9f6e-46b1-8caa-3a14584cb754" />
+
+## Lab - Setup Ansible Tower
+
+Install minikube
+```
+curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+minikube start --cpus=4 --memory=8g
+kubectl get storageclass          # need "standard (default)"
+kubectl get svc -A -o jsonpath='{range .items[*]}{range .spec.ports[*]}{.nodePort}{"\n"}{end}{end}' | sort -n | uniq
+```
+
+Deploy AWX operator
+```
+git clone https://github.com/ansible/awx-operator.git
+cd awx-operator
+git checkout 2.19.1
+make deploy IMG=quay.io/ansible/awx-operator:2.19.1
+
+kubectl -n awx set image deploy/awx-operator-controller-manager \
+  kube-rbac-proxy=quay.io/brancz/kube-rbac-proxy:v0.15.0
+kubectl -n awx rollout status deploy/awx-operator-controller-manager
+kubectl -n awx logs deploy/awx-operator-controller-manager -c awx-manager --tail=5
+```
+
+Create the AWX Instance
+```
+cat <<'EOF' | kubectl apply -f -
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx
+  namespace: awx
+spec:
+  service_type: nodeport
+  nodeport_port: 30090
+EOF
+```
+
+Wait and check
+```
+kubectl -n awx get pods -w
+# Login
+minikube ip
+kubectl -n awx get secret awx-admin-password -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+When reconcile fails, this is how you could get it fixed
+```
+kubectl -n awx patch awx awx --type=merge -p '{"spec":{"no_log":false}}'
+kubectl -n awx logs -f deploy/awx-operator-controller-manager -c awx-manager | grep -A40 'Apply Resources'
+kubectl -n awx patch awx awx --type=merge -p '{"spec":{"no_log":true}}'
+```
+
+Setup your password
+```
+kubectl -n awx create secret generic awx-admin-password \
+  --from-literal=password='awx@123'
+```
