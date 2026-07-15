@@ -1164,9 +1164,15 @@ sudo ufw deny 9092/tcp
 
 Test it
 ```
-curl http://<host-ip>:9092/api/orders   # must FAIL: connection refused
-curl http://<host-ip>/api/orders        # must SUCCEED, through httpd
+sudo ss -tlnp | grep 9092
+hostname -I | awk '{print $1}'
+
+curl http://192.168.1.104:9092/api/orders   # must FAIL: connection refused
+curl http://192.168.1.104/api/orders        # must SUCCEED, through httpd
 
 curl http://localhost:9092/api/order    # must FAIL: connection refused
 curl http://localhost/api/orders        # must SUCCEED, through httpd
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/9d9b2f0f-7dc7-4d8a-805e-216814764dda" />
+
+
