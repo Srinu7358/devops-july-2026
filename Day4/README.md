@@ -158,3 +158,14 @@ docker images | grep ubuntu-ansible
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cdd2e1ae-2fc5-4591-afed-c15fe69e4fbb" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/3597ec8c-9a98-42df-8af6-0ea2a95a6d91" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/6baa5991-37e3-40c3-af15-4c343e51ac74" />
+
+## Lab - Let's create 2 ubuntu2 ansible node containers
+```
+docker images | grep ubuntu-ansible
+docker run -d --name ubuntu1 --hostname ubuntu1 -p 2001:22 -p 8001:80 tektutor/ubuntu-ansible-node:1.0
+docker run -d --name ubuntu2 --hostname ubuntu2 -p 2002:22 -p 8002:80 tektutor/ubuntu-ansible-node:1.0
+
+# Check if the ansible node containers are running
+docker ps
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/67b3433c-6e54-4477-a6d1-180982f69fff" />
