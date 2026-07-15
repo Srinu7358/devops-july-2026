@@ -943,6 +943,8 @@ sudo systemctl stop tomcat-node1
 # Same cookie. Same user. The node that owned this session no longer exists.
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/5543eb76-a2b8-4859-baba-f576954b37d8" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/2fd6ab64-ceb2-4211-91dd-84465b7d3772" />
 
 Try this
 ```
@@ -1026,7 +1028,7 @@ Let's configure the app tier - /srv/app/conf/server.xml
 
     <Connector port="9092"
                protocol="HTTP/1.1"
-               address="127.0.0.1"
+               address="127.0.0.1"12D4DDDD963A44E3EBFE2214106A63AD.node2
                connectionTimeout="20000"
                maxThreads="200"
                proxyName="localhost"
