@@ -143,3 +143,18 @@
 - it could have one or more roles, custom modules, plugins, filters, etc.,
 - it's a way we could package and distribute all the related playbooks, modules, plugins, etc in a single collection
 </pre>
+
+
+## Lab - Building a Custom Docker Image to use as an Ansible Node
+```
+cd ~/devops-july-2026
+git pull
+cd Day4/ansible/CustomDockerImageForAnsibleNode
+ssh-keygen # Accept all defaults by hitting enter whenever it prompts something
+cp ~/.ssh/id_ed25519.pub authorized_keys
+docker build -t tektutor/ubuntu-ansible-node:1.0 .
+docker images | grep ubuntu-ansible
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cdd2e1ae-2fc5-4591-afed-c15fe69e4fbb" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/3597ec8c-9a98-42df-8af6-0ea2a95a6d91" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/6baa5991-37e3-40c3-af15-4c343e51ac74" />
