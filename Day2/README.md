@@ -944,6 +944,16 @@ sudo systemctl stop tomcat-node1
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
 
+Try this
+```
+curl -s -c jar.txt -b jar.txt http://127.0.0.1:9081/counter/count | grep -E "count|Session ID"
+curl -s -c jar.txt -b jar.txt http://127.0.0.1:9081/counter/count | grep -E "count|Session ID"
+curl -s -b jar.txt http://127.0.0.1:9082/counter/count | grep -E "count|Session ID"
+curl -s -b jar.txt http://127.0.0.1:9083/counter/count | grep -E "count|Session ID"
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/4bca94e6-cec2-4110-974f-c36fd9f5e597" />
+
+
 ## Lab - Apache Httpd Reverse Proxy Server with Apache Tomcat Web Server and Apache Tomcat App Server
 
 Let's create two users, as there are two tiers in different trust domains
