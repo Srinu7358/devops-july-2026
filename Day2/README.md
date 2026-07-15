@@ -1064,81 +1064,12 @@ SuccessExitStatus=143
 WantedBy=multi-user.target
 ```
 
-Web tier servlet - web-tier/src/main/java/org/tektutor/web/WebTierServlet.java
-```
-package org.tektutor.web;
-
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-
-@WebServlet(urlPatterns = {"/", "/web/*"})
-public class WebTierServlet extends HttpServlet {
-
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-
-        resp.setContentType("text/plain");
-        PrintWriter out = resp.getWriter();
-
-        out.println("Served by  : WEB TIER");
-        out.println("Local port : " + req.getLocalPort());     // 9091, the real socket
-        out.println("Server port: " + req.getServerPort());    // 80, because of proxyPort
-        out.println("Client IP  : " + req.getRemoteAddr());
-        out.println("Scheme     : " + req.getScheme());
-        out.println("Path       : " + req.getRequestURI());
-    }
-}
-```
-
-App tier servlet - app-tier/src/main/java/org/tektutor/app/ApiServlet.java
-```
-package org.tektutor.app;
-
-import jakarta.servlet.annotation.WebServlet;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-import java.io.IOException;
-import java.io.PrintWriter;
-
-@WebServlet("/*")
-public class ApiServlet extends HttpServlet {
-
-    private static final long serialVersionUID = 1L;
-
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-            throws IOException {
-
-        resp.setContentType("application/json");
-        PrintWriter out = resp.getWriter();
-
-        out.printf("{%n");
-        out.printf("  \"tier\": \"APP\",%n");
-        out.printf("  \"localPort\": %d,%n", req.getLocalPort());
-        out.printf("  \"clientIp\": \"%s\",%n", req.getRemoteAddr());
-        out.printf("  \"contextPath\": \"%s\",%n", req.getContextPath());
-        out.printf("  \"requestUri\": \"%s\"%n", req.getRequestURI());
-        out.printf("}%n");
-    }
-}
-```
-
 Start the services of web tier and app tier
 ```
 cd ~/devops-july-2026
 git pull
-cd Day2/
-cd web-tier && mvn clean package
+cd Day2/reveryproxy-web-and-app-tiers
+mvn clean package
 sudo cp target/ROOT.war /srv/web/webapps/
 sudo chown tcweb:tcweb /srv/web/webapps/ROOT.war
 
@@ -1148,10 +1079,24 @@ sudo chown tcapp:tcapp /srv/app/webapps/api.war
 sudo systemctl restart tomcat-app     # autoDeploy is false, so a restart is required
 ```
 
+```
+sudo ls -ld /opt/tomcat11 /opt/tomcat11/bin
+sudo chmod -R go+rX /opt/tomcat11
+sudo ls -ld /opt/tomcat11/bin
+sudo rm -f /srv/app/temp/tomcat.pid /srv/web/temp/tomcat.pid
+sudo systemctl reset-failed tomcat-app tomcat-web
+sudo systemctl restart tomcat-web tomcat-app
+sleep 8
+sudo ss -tlnp | grep -E ':(9091|9092)\b'
+```
+
+
+
 Test both
 ```
 curl http://localhost:9091/          # must print: Served by : WEB TIER
 curl http://localhost:9092/api/orders  # must print JSON with "tier": "APP"
+sudo cat /srv/app/logs/catalina.out
 ```
 
 Setup httpd as the reverse proxy
@@ -1159,7 +1104,7 @@ Setup httpd as the reverse proxy
 sudo a2enmod proxy proxy_http headers rewrite
 ```
 
-Configure - /etc/apache2/sites-available/tiers.conf
+  Configure - /etc/apache2/sites-available/tiers.conf
 ```
 <VirtualHost *:80>
 
@@ -1225,7 +1170,3 @@ curl http://<host-ip>/api/orders        # must SUCCEED, through httpd
 curl http://localhost:9092/api/order    # must FAIL: connection refused
 curl http://localhost/api/orders        # must SUCCEED, through httpd
 ```
-
-
-
-
