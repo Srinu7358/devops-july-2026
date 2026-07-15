@@ -319,6 +319,31 @@ Pre-requisite - you should have completed the previous exercise.
 - In this lab, we are going to add a load-balancer in front of those 3 tomcat node instances using Httpd
 </pre>
 
+What is the practical use-case of Load Balancing with sticky sessions
+<pre>
+- sticky sessions let you run a stateful application across multiple servers without those servers 
+  having to share or replicate state.
+- What is the problem it solves?
+  - A user logs in
+  - The server that handled the login stores their session in its own memory
+    - who they are? 
+    - what's in their cart? 
+    - how far through a checkout they are. 
+    - That data lives in one JVM's heap
+    - remember, we have 3 tomcat instances behind the loadbalancer
+    - without stickiness, the balancer spreads requests evenly
+      - Request 1 (login)      -> node1   session created on node1
+      - Request 2 (add item)   -> node2   node2 has no session -> "please log in"
+      - Request 3 (checkout)   -> node3   node3 has no session -> logged out again
+      - The user gets logged out on every click
+      - The application is broken, not because the code is wrong, but because the state 
+        is on node1 and the requests are landing everywhere
+    - With a sticky session, it looks like below
+      - Request 1 (login)      -> node1   session created
+      - Request 2 (add item)   -> node1   session found, cart works
+      - Request 3 (checkout)   -> node1   session found, checkout works
+</pre>
+
 Let's build the counter application
 ```
 cd ~/devops-july-2026
