@@ -326,6 +326,9 @@ git pull
 cd Day2/counter-app
 mvn clean package
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/a4967458-b048-4de7-abbe-bc86cb844bab" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f77e1aec-4b4a-4973-84dd-ea401a803584" />
+
 
 Deploy the counter application into tomcat-node1, tomcat-node2 and tomcat-node3 servers
 ```
@@ -335,6 +338,7 @@ for N in node1 node2 node3; do
 done
 ```
 
+
 Let's verify if our counter application is running in tomcat-node1, tomcat-node2 and tomcat-node3 servers
 ```
 sleep 15
@@ -343,11 +347,13 @@ curl http://localhost:9081/counter/count
 curl http://localhost:9082/counter/count
 curl http://localhost:9083/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/137d1973-5250-40e9-87a6-cbaa28c9836d" />
 
 Let's enable the httpd modules to setup httpd as the load balancer
 ```
 sudo a2enmod proxy proxy_http proxy_balancer lbmethod_byrequests slotmem_shm headers status
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/682c25da-fd3a-40e5-904a-23128c7479cf" />
 
 Let's configure the httpd configuration to include our tomcat-node1, tomcat-node2 and tomcat-node3 servers
 /etc/apache2/sites-available/tomcat-cluster.conf
@@ -402,6 +408,7 @@ Let's configure the httpd configuration to include our tomcat-node1, tomcat-node
 
 </VirtualHost>
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/02d7c219-bd50-44e7-9d2b-03bb8f64f8b6" />
 
 Let's makes sure the httpd does't server its html pages by disabling them
 ```
@@ -410,12 +417,14 @@ sudo a2ensite tomcat-cluster
 sudo apachectl configtest        # must print exactly: Syntax OK
 sudo systemctl reload apache2
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ed7c5e56-8892-421d-b44f-48fa4a3a45da" />
 
 Verify if the tomcat-node1, tomcat-node2 and tomcat-node3 all report ok under 
 loadbalancer on your web browser
 ```
 http://localhost/balancer-manager
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/70adb7a1-28db-4326-9c2e-b1a8d3868cae" />
 
 Demonstrates sticky sessions work
 ```
@@ -429,6 +438,7 @@ done
 
 grep JSESSIONID /tmp/cookies.txt
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/a407a0ee-963e-4946-b4e3-6bc18f0f7686" />
 
 Note
 <pre>
@@ -445,6 +455,7 @@ done
 
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f7bf65a6-3875-4ad8-be39-ce84f58ae71e" />
 
 Now, kill the node reported by the above curl
 ```
@@ -453,17 +464,23 @@ sudo systemctl stop tomcat-node2
 # Same cookie file. Same user. Nothing changed on the client side at all.
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/48efd572-fc76-4074-ad03-a287eae5c382" />
 
 Note
 <pre>
 - The apache httpd loadbalancer nicely handled the node failure
-- The Loadbalancer detected the node was down and failed over to other node
+- The Loadbalancer detected the node2 was down and failed over to node3
 </pre> 
 
 Bring back the node2
 ```
-sudo systemctl start tomcat-node2    # bring it back before Lab 4
+sudo systemctl start tomcat-node2 
+sleep 15
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
+curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cd73a190-523d-4171-bbd2-d99a56a87227" />
 
 
 ## Lab - Tomcat Clustering and Session Replication
