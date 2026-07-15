@@ -309,6 +309,8 @@ sudo systemctl start tomcat-node2
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/1ba84055-5a41-42ef-9aeb-7be6eb45b6c5" />
 
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/78482014-45af-470a-a0c5-985dd3914833" />
+
 ## Lab - Setup up a three-instance Tomcat topology
 <pre>
   
