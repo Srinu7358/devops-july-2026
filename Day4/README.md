@@ -145,6 +145,36 @@
 </pre>
 
 
+## Lab - Install docker community edition in Ubuntu
+```
+# Add Docker's official GPG key:
+sudo apt update
+sudo apt install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt update
+
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+
+sudo usermod -aG docker $USER
+newgrp $USER
+sudo su student
+docker --version
+docker images
+```
+
 ## Lab - Building a Custom Docker Image to use as an Ansible Node
 ```
 cd ~/devops-july-2026
@@ -169,3 +199,36 @@ docker run -d --name ubuntu2 --hostname ubuntu2 -p 2002:22 -p 8002:80 tektutor/u
 docker ps
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/67b3433c-6e54-4477-a6d1-180982f69fff" />
+
+## Lab - Test your ansible node containers for ssh connectivity without password
+Try SSH connection to ubuntu1 ansible node container
+```
+ssh -p 2001 root@localhost
+exit
+```
+
+Try SSH connection to ubuntu1 ansible node container
+```
+ssh -p 2002 root@localhost
+exit
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/252336d3-34ba-42a5-8fda-fa13208b4971" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e46148c4-24c4-455c-b4b5-87ff414fb76b" />
+
+## Lab - Install Ansible core in Ubuntu
+```
+sudo apt install ansible-core -y
+ansible --version
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/25182dce-7514-4bbd-a843-b6c2461e7395" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/aa6e01d2-1b7e-429d-8d50-03a6289312f1" />
+
+## Lab - See if ansible is able your ansible node containers
+This exericse confirms if ansible is able to communicate with the ubuntu1 and ubuntu2 ansible nodes.
+```
+cd ~/devops-july-2026
+git pull
+cd Day4/ansible/inventory
+ansible -i hosts all -m ping
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/bb74664c-f4a6-419d-9375-dc8fb12c28fa" />
