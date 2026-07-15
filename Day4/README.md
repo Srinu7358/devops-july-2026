@@ -171,7 +171,7 @@ sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin dock
 sudo usermod -aG docker $USER
 newgrp $USER
 
-docker --verison
+docker --version
 docker images
 ```
 
