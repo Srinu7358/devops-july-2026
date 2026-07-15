@@ -257,13 +257,15 @@ curl http://localhost:8002
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0b8a73ae-d4fe-4b12-9f7c-fc7d9b1bcce6" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7461ea62-9f6e-46b1-8caa-3a14584cb754" />
 
-## Lab - Setup Ansible Tower
-
+## Lab - Setup Ansible Tower (AWX - Opensource)
 Install minikube
 ```
 curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
 sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
 minikube start --cpus=4 --memory=8g
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+
 kubectl get storageclass          # need "standard (default)"
 kubectl get svc -A -o jsonpath='{range .items[*]}{range .spec.ports[*]}{.nodePort}{"\n"}{end}{end}' | sort -n | uniq
 ```
