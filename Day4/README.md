@@ -1,6 +1,6 @@
 # Day 4
 
-## Lab - 
+## Lab - App Server push plugin to restrict access to the Web server
 
 Read your Tomcat paths
 ```
