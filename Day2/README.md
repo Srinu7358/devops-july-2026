@@ -897,5 +897,335 @@ sudo systemctl stop tomcat-node1
 curl -s -c /tmp/cookies.txt -b /tmp/cookies.txt http://localhost/counter/count
 ```
 
+## Lab - Apache Httpd Reverse Proxy Server with Apache Tomcat Web Server and Apache Tomcat App Server
+
+Let's create two users, as there are two tiers in different trust domains
+```
+sudo useradd -r -s /usr/sbin/nologin tcweb
+sudo useradd -r -s /usr/sbin/nologin tcapp
+
+for TIER in web app; do
+  sudo mkdir -p /srv/$TIER/{bin,conf,logs,webapps,work,temp}
+  sudo cp /opt/tomcat11/conf/web.xml             /srv/$TIER/conf/
+  sudo cp /opt/tomcat11/conf/context.xml         /srv/$TIER/conf/
+  sudo cp /opt/tomcat11/conf/logging.properties  /srv/$TIER/conf/
+  sudo cp /opt/tomcat11/conf/catalina.properties /srv/$TIER/conf/
+  sudo cp /opt/tomcat11/conf/tomcat-users.xml    /srv/$TIER/conf/
+done
+
+sudo chown -R tcweb:tcweb /srv/web
+sudo chown -R tcapp:tcapp /srv/app
+sudo chmod 750 /srv/web/conf /srv/app/conf
+```
+
+Let's configure the web tier /srv/web/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9015" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9091"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="150"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost">
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="true">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="web_access"
+               suffix=".log"
+               pattern="WEB-TIER %h %t &quot;%r&quot; %s %b %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Let's configure the app tier - /srv/app/conf/server.xml
+```
+<?xml version="1.0" encoding="UTF-8"?>
+<Server port="9016" shutdown="SHUTDOWN">
+
+  <Listener className="org.apache.catalina.startup.VersionLoggerListener" />
+  <Listener className="org.apache.catalina.core.ThreadLocalLeakPreventionListener" />
+
+  <Service name="Catalina">
+
+    <Connector port="9092"
+               protocol="HTTP/1.1"
+               address="127.0.0.1"
+               connectionTimeout="20000"
+               maxThreads="200"
+               proxyName="localhost"
+               proxyPort="80" />
+
+    <Engine name="Catalina" defaultHost="localhost">
+
+      <Host name="localhost" appBase="webapps"
+            unpackWARs="true" autoDeploy="false">
+
+        <Valve className="org.apache.catalina.valves.RemoteIpValve"
+               remoteIpHeader="X-Forwarded-For"
+               protocolHeader="X-Forwarded-Proto" />
+
+        <Valve className="org.apache.catalina.valves.AccessLogValve"
+               directory="logs"
+               prefix="app_access"
+               suffix=".log"
+               pattern="APP-TIER %h %t &quot;%r&quot; %s %b %D" />
+
+      </Host>
+    </Engine>
+  </Service>
+</Server>
+```
+
+Configure setenv.sh per tier
+```
+sudo tee /srv/web/bin/setenv.sh >/dev/null <<'EOF'
+#!/bin/bash
+export JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
+export CATALINA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -Djava.awt.headless=true"
+EOF
+
+sudo tee /srv/app/bin/setenv.sh >/dev/null <<'EOF'
+#!/bin/bash
+export JAVA_HOME=$(readlink -f $(which java) | sed "s:/bin/java::")
+export CATALINA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -Djava.awt.headless=true"
+EOF
+
+sudo chown tcweb:tcweb /srv/web/bin/setenv.sh && sudo chmod 750 /srv/web/bin/setenv.sh
+sudo chown tcapp:tcapp /srv/app/bin/setenv.sh && sudo chmod 750 /srv/app/bin/setenv.sh
+```
+
+Create a service for the web tier - /etc/systemd/system/tomcat-web.service
+```
+[Unit]
+Description=Tomcat Web Tier (HTTP 9091)
+After=network.target
+
+[Service]
+Type=forking
+User=tcweb
+Group=tcweb
+
+Environment="CATALINA_HOME=/opt/tomcat11"
+Environment="CATALINA_BASE=/srv/web"
+Environment="CATALINA_PID=/srv/web/temp/tomcat.pid"
+
+ExecStart=/opt/tomcat11/bin/startup.sh
+ExecStop=/opt/tomcat11/bin/shutdown.sh
+
+Restart=on-failure
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Create a service for app tier - /etc/systemd/system/tomcat-app.service
+```
+[Unit]
+Description=Tomcat App Tier (HTTP 9092)
+After=network.target
+
+[Service]
+Type=forking
+User=tcapp
+Group=tcapp
+
+Environment="CATALINA_HOME=/opt/tomcat11"
+Environment="CATALINA_BASE=/srv/app"
+Environment="CATALINA_PID=/srv/app/temp/tomcat.pid"
+
+ExecStart=/opt/tomcat11/bin/startup.sh
+ExecStop=/opt/tomcat11/bin/shutdown.sh
+
+Restart=on-failure
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Web tier servlet - web-tier/src/main/java/org/tektutor/web/WebTierServlet.java
+```
+package org.tektutor.web;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+
+@WebServlet(urlPatterns = {"/", "/web/*"})
+public class WebTierServlet extends HttpServlet {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        resp.setContentType("text/plain");
+        PrintWriter out = resp.getWriter();
+
+        out.println("Served by  : WEB TIER");
+        out.println("Local port : " + req.getLocalPort());     // 9091, the real socket
+        out.println("Server port: " + req.getServerPort());    // 80, because of proxyPort
+        out.println("Client IP  : " + req.getRemoteAddr());
+        out.println("Scheme     : " + req.getScheme());
+        out.println("Path       : " + req.getRequestURI());
+    }
+}
+```
+
+App tier servlet - app-tier/src/main/java/org/tektutor/app/ApiServlet.java
+```
+package org.tektutor.app;
+
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+
+@WebServlet("/*")
+public class ApiServlet extends HttpServlet {
+
+    private static final long serialVersionUID = 1L;
+
+    @Override
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp)
+            throws IOException {
+
+        resp.setContentType("application/json");
+        PrintWriter out = resp.getWriter();
+
+        out.printf("{%n");
+        out.printf("  \"tier\": \"APP\",%n");
+        out.printf("  \"localPort\": %d,%n", req.getLocalPort());
+        out.printf("  \"clientIp\": \"%s\",%n", req.getRemoteAddr());
+        out.printf("  \"contextPath\": \"%s\",%n", req.getContextPath());
+        out.printf("  \"requestUri\": \"%s\"%n", req.getRequestURI());
+        out.printf("}%n");
+    }
+}
+```
+
+Start the services of web tier and app tier
+```
+cd ~/devops-july-2026
+git pull
+cd Day2/
+cd web-tier && mvn clean package
+sudo cp target/ROOT.war /srv/web/webapps/
+sudo chown tcweb:tcweb /srv/web/webapps/ROOT.war
+
+cd ../app-tier && mvn clean package
+sudo cp target/api.war /srv/app/webapps/
+sudo chown tcapp:tcapp /srv/app/webapps/api.war
+sudo systemctl restart tomcat-app     # autoDeploy is false, so a restart is required
+```
+
+Test both
+```
+curl http://localhost:9091/          # must print: Served by : WEB TIER
+curl http://localhost:9092/api/orders  # must print JSON with "tier": "APP"
+```
+
+Setup httpd as the reverse proxy
+```
+sudo a2enmod proxy proxy_http headers rewrite
+```
+
+Configure - /etc/apache2/sites-available/tiers.conf
+```
+<VirtualHost *:80>
+
+    ServerName localhost
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    # =================================================================
+    #  ORDER MATTERS. Most specific path FIRST.
+    #  /api goes to the APP tier
+    # =================================================================
+    ProxyPass        /api  http://127.0.0.1:9092/api
+    ProxyPassReverse /api  http://127.0.0.1:9092/api
+
+    # everything else goes to the WEB tier
+    ProxyPass        /     http://127.0.0.1:9091/
+    ProxyPassReverse /     http://127.0.0.1:9091/
+
+    RequestHeader set X-Forwarded-Proto "http"
+
+    ErrorLog  ${APACHE_LOG_DIR}/tiers_error.log
+    CustomLog ${APACHE_LOG_DIR}/tiers_access.log combined
+
+</VirtualHost>
+```
+
+Enable all reverse proxy modules
+```
+sudo a2dissite 000-default
+sudo a2ensite tiers
+sudo apachectl configtest        # must print exactly: Syntax OK
+sudo systemctl reload apache2
+```
+
+Prove the routing from the logs
+```
+# Terminal 1 — watch the web tier
+sudo tail -f /srv/web/logs/web_access.$(date +%F).log
+
+# Terminal 2 — watch the app tier
+sudo tail -f /srv/app/logs/app_access.$(date +%F).log
+
+# Terminal 3 — send traffic to port 80 only. Never to 9091 or 9092.
+curl http://localhost/
+curl http://localhost/web/hello
+curl http://localhost/api/orders
+curl http://localhost/api/customers/42
+```
+
+Open firewall ports
+```
+sudo ufw allow 80/tcp
+sudo ufw deny 9091/tcp
+sudo ufw deny 9092/tcp
+```
+
+Test it
+```
+curl http://<host-ip>:9092/api/orders   # must FAIL: connection refused
+curl http://<host-ip>/api/orders        # must SUCCEED, through httpd
+
+curl http://localhost:9092/api/order    # must FAIL: connection refused
+curl http://localhost/api/orders        # must SUCCEED, through httpd
+```
+
+
 
 
