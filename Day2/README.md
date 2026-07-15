@@ -1068,7 +1068,7 @@ Start the services of web tier and app tier
 ```
 cd ~/devops-july-2026
 git pull
-cd Day2/reveryproxy-web-and-app-tiers
+cd Day2/reveryproxy-web-and-app-tiers/web-tier
 mvn clean package
 sudo cp target/ROOT.war /srv/web/webapps/
 sudo chown tcweb:tcweb /srv/web/webapps/ROOT.war
