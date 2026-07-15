@@ -199,3 +199,20 @@ docker run -d --name ubuntu2 --hostname ubuntu2 -p 2002:22 -p 8002:80 tektutor/u
 docker ps
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/67b3433c-6e54-4477-a6d1-180982f69fff" />
+
+## Lab - Test your ansible node containers for ssh connectivity without password
+Try SSH connection to ubuntu1 ansible node container
+```
+ssh -p 2001 root@localhost
+exit
+```
+
+Try SSH connection to ubuntu1 ansible node container
+```
+ssh -p 2002 root@localhost
+exit
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/252336d3-34ba-42a5-8fda-fa13208b4971" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e46148c4-24c4-455c-b4b5-87ff414fb76b" />
+
+
