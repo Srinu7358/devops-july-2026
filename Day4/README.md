@@ -229,6 +229,89 @@ This exericse confirms if ansible is able to communicate with the ubuntu1 and ub
 cd ~/devops-july-2026
 git pull
 cd Day4/ansible/inventory
+
+# Run ansible ad-hoc command to ping ubuntu1 and ubuntu2 ansible nodes
 ansible -i hosts all -m ping
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/bb74664c-f4a6-419d-9375-dc8fb12c28fa" />
+
+## Lab - Running an ansible playbook that installs apache2 server in Ubuntu ansible nodes
+```
+cd ~/devops-july-2026
+git pull
+cd Day4/ansible/playbook
+cat hosts
+cat install-apache-playbook.yml
+
+ansible-playbook -i hosts install-apache-playbook.yml
+```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/1928f1bf-c8e0-47a3-819b-4306489462c0" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/18a3a1ea-2868-432c-bd31-574db437b1cc" />
+
+Accessing the web pages from apache running on ubuntu1 and ubuntu2 ansible nodes
+```
+curl http://localhost:8001
+curl http://localhost:8002
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0b8a73ae-d4fe-4b12-9f7c-fc7d9b1bcce6" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7461ea62-9f6e-46b1-8caa-3a14584cb754" />
+
+## Lab - Setup Ansible Tower
+
+Install minikube
+```
+curl -LO https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+minikube start --cpus=4 --memory=8g
+kubectl get storageclass          # need "standard (default)"
+kubectl get svc -A -o jsonpath='{range .items[*]}{range .spec.ports[*]}{.nodePort}{"\n"}{end}{end}' | sort -n | uniq
+```
+
+Deploy AWX operator
+```
+git clone https://github.com/ansible/awx-operator.git
+cd awx-operator
+git checkout 2.19.1
+make deploy IMG=quay.io/ansible/awx-operator:2.19.1
+
+kubectl -n awx set image deploy/awx-operator-controller-manager \
+  kube-rbac-proxy=quay.io/brancz/kube-rbac-proxy:v0.15.0
+kubectl -n awx rollout status deploy/awx-operator-controller-manager
+kubectl -n awx logs deploy/awx-operator-controller-manager -c awx-manager --tail=5
+```
+
+Create the AWX Instance
+```
+cat <<'EOF' | kubectl apply -f -
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx
+  namespace: awx
+spec:
+  service_type: nodeport
+  nodeport_port: 30090
+EOF
+```
+
+Wait and check
+```
+kubectl -n awx get pods -w
+# Login
+minikube ip
+kubectl -n awx get secret awx-admin-password -o jsonpath='{.data.password}' | base64 -d; echo
+```
+
+When reconcile fails, this is how you could get it fixed
+```
+kubectl -n awx patch awx awx --type=merge -p '{"spec":{"no_log":false}}'
+kubectl -n awx logs -f deploy/awx-operator-controller-manager -c awx-manager | grep -A40 'Apply Resources'
+kubectl -n awx patch awx awx --type=merge -p '{"spec":{"no_log":true}}'
+```
+
+Setup your password
+```
+kubectl -n awx create secret generic awx-admin-password \
+  --from-literal=password='awx@123'
+```
