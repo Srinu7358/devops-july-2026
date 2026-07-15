@@ -934,7 +934,7 @@ On a different terminal, run this
 ```
 sudo tail -f /srv/node2/logs/catalina.$(date +%F).log
 ```
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/b3a41e19-4102-4281-bd31-f86f815ea311" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d1e34b77-e046-4023-b1da-ecbdcfe2feda" />
 
 kill the node that was named by the curl output
 ```
