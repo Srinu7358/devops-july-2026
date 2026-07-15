@@ -320,3 +320,4 @@ kubectl -n awx create secret generic awx-admin-password \
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7f40dabd-bff7-4674-9bff-5320627e6104" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/88a2cb4e-829f-41a0-8c78-842dc82c09b4" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/222f50c2-f0ed-4b63-ba21-2375375eb43f" />
