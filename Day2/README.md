@@ -633,14 +633,17 @@ Let's add the cluster elements in /srv/node1/conf/server.xml using vim/gedit/nan
           <!-- I list my PEERS here, never myself.
                node1 lists node2 (port 4001) and node3 (port 4002). -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4000"
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4001" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4002" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <!-- MANDATORY with static membership. Without it, a dead node
@@ -718,14 +721,17 @@ Let's update node2 /srv/node2/conf/server.xml
 
           <!-- node2 lists node1 (4000) and node3 (4002) -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4001"
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4000" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4002" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3}" />
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
@@ -801,14 +807,17 @@ Let's update node3 /srv/node3/conf/server.xml
 
           <!-- node3 lists node1 (4000) and node2 (4001) -->
           <Membership className="org.apache.catalina.tribes.membership.StaticMembershipService">
+	    <LocalMember className="org.apache.catalina.tribes.membership.StaticMember"
+		         host="127.0.0.1" port="4002"
+                    uniqueId="{3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4000" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}" />
+                    uniqueId="{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
             <Member className="org.apache.catalina.tribes.membership.StaticMember"
                     host="127.0.0.1" port="4001" securePort="-1"
                     domain="tektutor-cluster"
-                    uniqueId="{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2}" />
+                    uniqueId="{2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}" />
           </Membership>
 
           <Interceptor className="org.apache.catalina.tribes.group.interceptors.TcpFailureDetector" />
@@ -840,6 +849,25 @@ Let's update node3 /srv/node3/conf/server.xml
     </Engine>
   </Service>
 </Server>
+```
+
+Let's create a web.xml in each server
+```
+# adjust the path once find shows where /counter really lives
+for n in 1 2 3; do
+  d=/srv/node$n/webapps/counter/WEB-INF
+  sudo mkdir -p "$d"
+  sudo tee "$d/web.xml" >/dev/null <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+             https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+  <distributable/>
+</web-app>
+EOF
+done
 ```
 
 Restart and watch the cluster forming
