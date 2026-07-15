@@ -323,7 +323,6 @@ kubectl -n awx create secret generic awx-admin-password \
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/222f50c2-f0ed-4b63-ba21-2375375eb43f" />
 
 ## Lab - Install Ansible Tower CLI tool
-```
 To install tower-cli in Ubuntu
 ```
 sudo apt update && sudo apt install -y python3 python3-pip
