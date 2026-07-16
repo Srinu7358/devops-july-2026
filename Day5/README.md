@@ -169,3 +169,359 @@ docker exec openldap ldapsearch -x -H ldap://localhost \
   -b "dc=tektutor,dc=org" "(uid=sriram)" uid cn
 # a returned entry = bind succeeded = credentials valid
 ```
+
+## Lab - Configure Keycloak for SSO and policy
+
+Pre-flight (OpenLDAP from the previous lab must be running)
+```
+docker ps --filter name=openldap        # must be Up; if not, redo the LDAP lab
+docker --version
+docker network ls | grep ssolab || docker network create ssolab
+# put OpenLDAP on the shared network so Keycloak can reach it by name
+docker network connect ssolab openldap 2>/dev/null || true
+sudo ss -ltnp | grep -E ':(8080|4180|4181|9001|9002)\b' && echo "PORT IN USE" || echo "ports free"
+```
+
+Run Keycloak (dev mode is fine for a lab)
+```
+docker rm -f keycloak 2>/dev/null
+docker run -d --name keycloak --network ssolab \
+  -p 8080:8080 \
+  -e KEYCLOAK_ADMIN=admin \
+  -e KEYCLOAK_ADMIN_PASSWORD='Admin@123' \
+  quay.io/keycloak/keycloak:26.0 start-dev
+sleep 20
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/   # expect 200/302
+```
+
+Log in with kcadm (the admin CLI inside the container)
+```
+docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
+  --server http://localhost:8080 --realm master \
+  --user admin --password 'Admin@123'
+```
+
+Create the realm
+```
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create realms \
+  -s realm=tektutor -s enabled=true
+```
+
+Federate the realm to OpenLDAP as the user store
+```
+# connection URL uses the container name on the shared network
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
+  components -r tektutor \
+  -s name=openldap \
+  -s providerId=ldap \
+  -s providerType=org.keycloak.storage.UserStorageProvider \
+  -s 'config.priority=["0"]' \
+  -s 'config.editMode=["READ_ONLY"]' \
+  -s 'config.vendor=["other"]' \
+  -s 'config.connectionUrl=["ldap://openldap:389"]' \
+  -s 'config.usersDn=["ou=people,dc=tektutor,dc=org"]' \
+  -s 'config.bindDn=["cn=admin,dc=tektutor,dc=org"]' \
+  -s 'config.bindCredential=["Admin@123"]' \
+  -s 'config.usernameLDAPAttribute=["uid"]' \
+  -s 'config.rdnLDAPAttribute=["uid"]' \
+  -s 'config.uuidLDAPAttribute=["entryUUID"]' \
+  -s 'config.userObjectClasses=["inetOrgPerson"]' \
+  -s 'config.searchScope=["2"]'
+# note the returned component id if you want to reference it later
+```
+
+Add a group mapper so LDAP groups become Keycloak groups
+```
+# find the ldap component id
+LDAP_ID=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get components -r tektutor \
+  --query name=openldap --fields id --format csv --noquotes | tail -1)
+echo "ldap component: $LDAP_ID"
+
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create components -r tektutor \
+  -s name=group-mapper \
+  -s providerId=group-ldap-mapper \
+  -s providerType=org.keycloak.storage.ldap.mappers.LDAPStorageMapper \
+  -s "parentId=$LDAP_ID" \
+  -s 'config.mode=["READ_ONLY"]' \
+  -s 'config."groups.dn"=["ou=groups,dc=tektutor,dc=org"]' \
+  -s 'config."group.name.ldap.attribute"=["cn"]' \
+  -s 'config."group.object.classes"=["groupOfNames"]' \
+  -s 'config."membership.ldap.attribute"=["member"]' \
+  -s 'config."membership.attribute.type"=["DN"]' \
+  -s 'config."user.roles.retrieve.strategy"=["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE"]'
+```
+
+Sync users and groups from OpenLDAP
+```
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
+  "user-storage/$LDAP_ID/sync?action=triggerFullSync" -r tektutor
+# verify users federated in
+docker exec keycloak /opt/keycloak/bin/kcadm.sh get users -r tektutor \
+  --fields username,email
+# expect jegan, sriram, asha
+# verify groups federated in
+docker exec keycloak /opt/keycloak/bin/kcadm.sh get groups -r tektutor \
+  --fields name
+# expect developers, admins
+```
+
+Register application 1 as an OIDC client (app1, will run behind proxy on 4180)
+```
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
+  -s clientId=app1 \
+  -s enabled=true \
+  -s protocol=openid-connect \
+  -s publicClient=false \
+  -s standardFlowEnabled=true \
+  -s 'redirectUris=["http://localhost:4180/oauth2/callback"]' \
+  -s 'webOrigins=["http://localhost:4180"]'
+# capture app1 client secret
+A1=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
+  --query clientId=app1 --fields id --format csv --noquotes | tail -1)
+docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A1/client-secret" -r tektutor
+# note the "value" -> this is APP1_CLIENT_SECRET
+```
+
+Register application 2 as an OIDC client (app2, proxy on 4181)
+```
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
+  -s clientId=app2 \
+  -s enabled=true \
+  -s protocol=openid-connect \
+  -s publicClient=false \
+  -s standardFlowEnabled=true \
+  -s 'redirectUris=["http://localhost:4181/oauth2/callback"]' \
+  -s 'webOrigins=["http://localhost:4181"]'
+A2=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
+  --query clientId=app2 --fields id --format csv --noquotes | tail -1)
+docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A2/client-secret" -r tektutor
+# note APP2_CLIENT_SECRET
+```
+
+Add a groups claim to the token so the proxy can enforce policy
+```
+# add a group-membership mapper on each client so the ID token carries "groups"
+for CID in $A1 $A2; do
+docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
+  "clients/$CID/protocol-mappers/models" -r tektutor \
+  -s name=groups \
+  -s protocol=openid-connect \
+  -s protocolMapper=oidc-group-membership-mapper \
+  -s 'config."claim.name"=["groups"]' \
+  -s 'config."full.path"=["false"]' \
+  -s 'config."id.token.claim"=["true"]' \
+  -s 'config."access.token.claim"=["true"]' \
+  -s 'config."userinfo.token.claim"=["true"]'
+done
+```
+
+Define the policy: allow only the "developers" group
+```
+# There are two valid ways to enforce "only developers":
+#   (a) at the proxy  -> oauth2-proxy checks the groups claim (used below)
+#   (b) in Keycloak   -> client authorization policy on a group
+# We use (a) because it protects the app edge and needs no per-app resource
+# modeling. The token already carries "groups" from the mapper above.
+echo "policy = oauth2-proxy allowed_groups=developers (enforced at the proxy)"
+```
+
+Run two tiny backend apps to protect (plain hello servers)
+```
+docker run -d --name app1 --network ssolab -p 9001:80 \
+  hashicorp/http-echo -text="APP1 backend: you are in"
+docker run -d --name app2 --network ssolab -p 9002:80 \
+  hashicorp/http-echo -text="APP2 backend: you are in"
+```
+
+Protect app1 with oauth2-proxy, restricted to the developers group
+```
+docker run -d --name proxy-app1 --network ssolab -p 4180:4180 \
+  quay.io/oauth2-proxy/oauth2-proxy:latest \
+  --provider=oidc \
+  --oidc-issuer-url=http://keycloak:8080/realms/tektutor \
+  --client-id=app1 \
+  --client-secret='APP1_CLIENT_SECRET' \
+  --redirect-url=http://localhost:4180/oauth2/callback \
+  --upstream=http://app1:80 \
+  --http-address=0.0.0.0:4180 \
+  --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
+  --cookie-secure=false \
+  --email-domain='*' \
+  --scope="openid profile email groups" \
+  --allowed-group=developers \
+  --oidc-groups-claim=groups
+```
+
+Protect app2 the same way on 4181
+```
+docker run -d --name proxy-app2 --network ssolab -p 4181:4181 \
+  quay.io/oauth2-proxy/oauth2-proxy:latest \
+  --provider=oidc \
+  --oidc-issuer-url=http://keycloak:8080/realms/tektutor \
+  --client-id=app2 \
+  --client-secret='APP2_CLIENT_SECRET' \
+  --redirect-url=http://localhost:4181/oauth2/callback \
+  --upstream=http://app2:80 \
+  --http-address=0.0.0.0:4181 \
+  --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
+  --cookie-secure=false \
+  --email-domain='*' \
+  --scope="openid profile email groups" \
+  --allowed-group=developers \
+  --oidc-groups-claim=groups
+```
+
+Test: a developer gets in, SSO carries to the second app
+```
+# In a browser (these flows need cookies/redirects, curl won't complete login):
+#  1. open http://localhost:4180  -> redirected to Keycloak login
+#  2. log in as  sriram / Passw0rd!   (member of developers)
+#  3. you land on "APP1 backend: you are in"
+#  4. open http://localhost:4181  -> NO second login (SSO session), APP2 shows
+```
+
+Test: a non-developer is denied by the policy
+```
+# asha is NOT in the developers group.
+#  1. open a fresh/incognito browser -> http://localhost:4180
+#  2. log in as  asha / Passw0rd!
+#  3. Keycloak authenticates her, but oauth2-proxy sees no "developers" in the
+#     groups claim and returns 403 -> access denied at the proxy
+```
+
+Verify the token actually carries the group (troubleshooting aid)
+```
+# confirm the issuer/discovery is reachable from the proxy's network
+docker exec proxy-app1 wget -qO- \
+  http://keycloak:8080/realms/tektutor/.well-known/openid-configuration | head -c 300
+# proxy logs show the allow/deny decision
+docker logs --tail 20 proxy-app1
+```
+
+## Lab - Prove single sign-on and policy
+
+Pre-flight (everything from the Keycloak lab must be up)
+```
+docker ps --filter name=openldap --filter name=keycloak \
+  --filter name=proxy-app1 --filter name=proxy-app2 \
+  --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+# all five (openldap, keycloak, proxy-app1, proxy-app2, + app1/app2) must be Up
+```
+
+Confirm Keycloak discovery is reachable from a proxy (the usual failure point)
+```
+docker exec proxy-app1 wget -qO- \
+  http://keycloak:8080/realms/tektutor/.well-known/openid-configuration \
+  | tr ',' '\n' | grep -E '"issuer"|authorization_endpoint'
+# the issuer value here must match what the browser will hit; note it
+```
+
+Use a browser on your workstation, not the headless server
+```
+# The OIDC flow needs redirects + cookies. If tektutor is headless, from your
+# laptop either use an SSH tunnel or point at the server's IP:
+#   ssh -L 4180:localhost:4180 -L 4181:localhost:4181 -L 8080:localhost:8080 jegan@<server>
+# then browse http://localhost:4180 on your laptop.
+```
+
+Step 1 - Open the first app, get redirected, sign in, reach the app
+```
+# 1. Open a FRESH browser (or incognito) -> http://localhost:4180
+# 2. oauth2-proxy sees no session -> redirects you to Keycloak login
+# 3. Sign in as a developers-group user:   sriram / Passw0rd!
+# 4. Keycloak authenticates against OpenLDAP (LDAP bind), issues a token
+# 5. You land on: "APP1 backend: you are in"
+```
+
+SiteMinder equivalent (Step 1)
+```
+# Keycloak realm login page      = SiteMinder credential collector / login FCC
+# oauth2-proxy in front of app1   = SiteMinder Web Agent on the web server
+# "no session -> redirect to IdP" = Web Agent finds no SMSESSION cookie,
+#                                    redirects to the Policy Server login
+# Keycloak authenticating via LDAP= SiteMinder Policy Server authenticating
+#                                    against its LDAP user directory
+# token/oauth2-proxy cookie issued= SiteMinder issues the SMSESSION cookie
+```
+
+Step 2 - Open the second app, confirm NO second login
+```
+# In the SAME browser (same session):
+#   Open http://localhost:4181
+#   You reach "APP2 backend: you are in" WITHOUT logging in again.
+# That is single sign-on: Keycloak already has an SSO session for this browser,
+# so it issues app2 a token silently.
+```
+
+SiteMinder equivalent (Step 2)
+```
+# Keycloak SSO session (KEYCLOAK_SESSION cookie) = the SMSESSION cookie shared
+#   across agents in the same cookie domain / policy domain
+# app2's Web Agent sees a valid SMSESSION -> no re-auth, just an authz check
+# This is exactly SiteMinder "single sign-on across agents in one domain"
+```
+
+Confirm the SSO session exists (evidence for Step 2)
+```
+# In the browser dev tools -> Application -> Cookies for localhost:8080,
+# you'll see Keycloak's session cookies (KEYCLOAK_SESSION / KEYCLOAK_IDENTITY).
+# Those are what let app2 skip the login. (SiteMinder analog: SMSESSION.)
+```
+
+Step 3 - Sign in as a user OUTSIDE the allowed group, confirm denial
+```
+# 1. Open a NEW incognito window (clean session) -> http://localhost:4180
+# 2. Sign in as asha / Passw0rd!   (asha is NOT in the developers group)
+# 3. Keycloak AUTHENTICATES her successfully (valid LDAP user)...
+# 4. ...but oauth2-proxy checks the "groups" claim, sees no "developers",
+#    and returns 403 Forbidden. Access denied at the proxy.
+```
+
+SiteMinder equivalent (Step 3)
+```
+# Keycloak login success + proxy 403 = SiteMinder AUTHENTICATION succeeds
+#   (valid directory user) but AUTHORIZATION fails
+# oauth2-proxy --allowed-group=developers = a SiteMinder authorization POLICY
+#   that binds a realm/resource to a specific user directory GROUP
+# "authenticated but not authorized" is the classic SiteMinder distinction:
+#   the AuthN step passes, the AuthZ rule on the protected resource rejects
+```
+
+Prove the difference is authorization, not authentication (evidence for Step 3)
+```
+# Watch the proxy decision as asha is denied:
+docker logs --tail 15 proxy-app1
+# you should see the login succeed upstream but the group check fail ->
+# a 403, confirming denial happened at the policy layer, not at login.
+```
+
+Reset between test users (so sessions don't bleed across cases)
+```
+# Each identity test needs a clean session. Either use a new incognito window
+# per user, or clear cookies for localhost:8080/4180/4181 between runs.
+# To force Keycloak-side logout of the current SSO session:
+#   open http://localhost:8080/realms/tektutor/protocol/openid-connect/logout
+```
+
+The three assertions this lab proves, stated plainly
+```
+# 1. Federation works:  an OpenLDAP user logs into an app via Keycloak.
+# 2. SSO works:         one login reaches app1 AND app2, no second prompt.
+# 3. Policy works:      a valid user outside the group is denied (AuthZ != AuthN).
+```
+
+Full SiteMinder mapping table, for your notes
+```
+# Keycloak / this lab            ->  SiteMinder
+# ---------------------------------------------------------------
+# Keycloak (IdP + token issuer)  ->  Policy Server
+# Keycloak realm                 ->  Policy Domain
+# oauth2-proxy (per app)         ->  Web Agent (per web server/app)
+# OpenLDAP                       ->  User Directory (LDAP)
+# Keycloak SSO session cookie    ->  SMSESSION cookie
+# OIDC token / groups claim      ->  SiteMinder session + directory attributes
+# --allowed-group=developers     ->  Authorization policy bound to a group
+# realm login page               ->  credential collector (FCC/login page)
+# authentication (LDAP bind)     ->  AuthN scheme (LDAP)
+# group/policy check -> 403      ->  AuthZ rule denial on a protected resource
+```
