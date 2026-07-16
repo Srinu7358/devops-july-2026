@@ -8,23 +8,27 @@
   - the process host that launches and supervises your application's worker processes
 - The rough Tomcat parallel, since you've been living in that world
   - IIS is like Apache httpd and the servlet container's process management fused into one Windows service
+  
 - Application pools
   - An application pool is the isolation and process boundary
   - Each pool runs one or more worker processes (w3wp.exe), and sites assigned to a pool share 
     that process space
   - Pools are how you isolate apps from each other on the same server, one crashing app doesn't take 
     down the others
+  
 - CLR version
   - Historically this selected the .NET Framework runtime (v2.0 vs v4.0). 
   - The critical modern gotcha: for ASP.NET Core, you set this to "No Managed Code." ASP.NET Core doesn't 
     load the .NET Framework CLR into the worker, the app runs its own .NET (Core) runtime out of process or 
     in a native module, so the pool shouldn't load a managed runtime at all
   - Setting a CLR version for a Core app is a common misconfiguration
+  
 - Pipeline mode
   - Integrated vs Classic. 
     - Integrated (the default and correct choice for anything modern) merges the IIS and ASP.NET request 
       pipelines so managed modules see every request. 
     - Classic mode emulates old IIS 6 behavior and exists only for legacy apps.
+  
 - Identity
   - The Windows account the worker runs as. ApplicationPoolIdentity is the default and the right choice for 
     most cases, a virtual, per-pool account (IIS AppPool\<PoolName>) with minimal rights, so you grant file/DB 
