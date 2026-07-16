@@ -87,6 +87,42 @@ oc get pods -o wide
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/59629a73-79ee-4a68-817b-4ece438f9363" />
 
+Create an internal service for nginx deployment
+```
+oc expose deploy/nginx --type=ClusterIP --port=8080
+```
+
+List services
+```
+oc get services
+oc get service
+oc get svc
+```
+
+Descibe service to find more details about the service
+```
+oc describe svc/nginx
+```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/58e60c8e-f57e-46b6-950c-7ec19698bb72" />
+
+Let's create an external to make the nginx accessible for outside world
+```
+oc expose svc/gninx
+```
+
+List the routes
+```
+oc get routes
+oc get route
+```
+
+Accessing the route
+```
+curl http://nginx-jegan.apps-crc.testing
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d82c3cda-2fd5-4bac-9de4-3e9263c7ff97" />
+
 
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
