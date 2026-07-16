@@ -19,6 +19,23 @@
   - Red Hat Openshift
 </pre>
 
+## Info - Red Hat Openshift
+<pre>
+- is a Contantainer Orchestration Platform developed by Red Hat
+- it is a Red Hat's distribution of Kubernetes
+- it is developed on top of open source Google Kubernetes
+- Red Hat Openshift supports all the features of Google Kubernetes + many additional useful features
+- New features added in Openshift
+  - Webconsole (GUI)
+  - User Management
+  - Route to expose application for external access with a user-friendly url
+  - S2I ( Source to Image )
+    - Deploying application from source code
+    - BuildConfig
+      - declarative definition to build and deploy your application container image and/or application 
+    - ImageStream ( Custom Image with your application and its dependencies )
+</pre>
+
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
 - OpenLDAP is where identities live
