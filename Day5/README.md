@@ -865,7 +865,7 @@ Point at a live Jenkins (read-only API token)
 # Jenkins UI: click your name > Configure > API Token > Add new token
 export JENKINS_URL=http://localhost:8080
 export JENKINS_USER=jegan
-export JENKINS_TOKEN=<paste-api-token>
+export JENKINS_TOKEN=116f89efaced1fadb55a989b7ed99fc080
 python3 client_test.py         # source flips from MOCK to jenkins
 ```
 
