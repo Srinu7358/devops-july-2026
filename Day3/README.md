@@ -104,9 +104,15 @@ sudo CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
 
 ## Lab2 - App Server push plugin to restrict access to the Web server
 
+Check your base server.xml ports first (the port rewrites below depend on these)
+```
+grep -nE '<Server port=|<Connector port=' /opt/tomcat11/conf/server.xml
+```
+> If this shows `8080`/`8005` (stock Tomcat 11), use the stock-port sed block. If it shows `8100`/`8007`, your base was pre-customized and the original sed patterns apply. The blocks below assume stock `8080`/`8005`.
+
 Pre-flight cleanup (clear stale instances from a previous run)
 ```
-sudo systemctl stop tomcat-gw tomcat-appsvc 2>/dev/null
+sudo systemctl stop tomcat-webgw tomcat-appsvc 2>/dev/null
 sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
 sleep 2
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clear to start"
@@ -128,18 +134,18 @@ done
 sudo chown -R $TC_USER:$TC_USER /srv/webtier /srv/apptier
 ```
 
-Configure Web-tier ports
+Configure Web-tier ports (stock base: 8080 HTTP, 8005 shutdown)
 ```
-sudo sed -i 's/port="8100"/port="9091"/' /srv/webtier/conf/server.xml
-sudo sed -i 's/<Server port="8007"/<Server port="9015"/' /srv/webtier/conf/server.xml
+sudo sed -i 's/<Connector port="8080"/<Connector port="9091"/' /srv/webtier/conf/server.xml
+sudo sed -i 's/<Server port="8005"/<Server port="9015"/' /srv/webtier/conf/server.xml
 sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/webtier/conf/server.xml
 grep -nE '<Server port=|<Connector port=' /srv/webtier/conf/server.xml
 ```
 
-Configure App-tier ports
+Configure App-tier ports (stock base: 8080 HTTP, 8005 shutdown)
 ```
-sudo sed -i 's/port="8100"/port="9092"/' /srv/apptier/conf/server.xml
-sudo sed -i 's/<Server port="8007"/<Server port="9016"/' /srv/apptier/conf/server.xml
+sudo sed -i 's/<Connector port="8080"/<Connector port="9092"/' /srv/apptier/conf/server.xml
+sudo sed -i 's/<Server port="8005"/<Server port="9016"/' /srv/apptier/conf/server.xml
 sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/apptier/conf/server.xml
 grep -nE '<Server port=|<Connector port=' /srv/apptier/conf/server.xml
 ```
@@ -150,24 +156,37 @@ sudo sed -i 's#<Connector port="9091" protocol="HTTP/1.1"#<Connector port="9091"
 sudo sed -i 's#<Connector port="9092" protocol="HTTP/1.1"#<Connector port="9092" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/apptier/conf/server.xml
 ```
 
+Confirm the loopback bind landed (both must print a match)
+```
+grep -n 'address="127.0.0.1"' /srv/webtier/conf/server.xml /srv/apptier/conf/server.xml
+```
+
 Check ports free
 ```
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' && echo CLASH || echo "ports free"
 ```
 
-Install systemd units (edit CATALINA_HOME/JAVA_HOME/User in both first)
+Install systemd units (set CATALINA_HOME/JAVA_HOME/User via real placeholders in both first)
 ```
 cd ~/devops-july-2026
 git pull
 cd Day3/pluginconf-srv
 
-sed -i 's#/opt/tomcat11\b#/opt/tomcat11#g' systemd/tomcat-webgw.service systemd/tomcat-appsvc.service
+# Replace the shipped placeholders with your real values. Adjust the
+# left-hand tokens to match whatever your unit templates actually use.
+sed -i 's#__CATALINA_HOME__#/opt/tomcat11#g' systemd/tomcat-webgw.service systemd/tomcat-appsvc.service
+sed -i "s#__JAVA_HOME__#$(dirname $(dirname $(readlink -f $(which java))))#g" systemd/tomcat-webgw.service systemd/tomcat-appsvc.service
+sed -i 's#__TC_USER__#tomcat#g' systemd/tomcat-webgw.service systemd/tomcat-appsvc.service
+
+# Confirm no placeholders remain
+grep -nE '__CATALINA_HOME__|__JAVA_HOME__|__TC_USER__' systemd/*.service || echo "placeholders resolved"
+
 sudo cp systemd/tomcat-webgw.service /etc/systemd/system/
 sudo cp systemd/tomcat-appsvc.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
-Build your application 
+Build your application
 ```
 cd web-tier && mvn -q clean package && cd ..
 cd app-tier && mvn -q clean package && cd ..
@@ -197,7 +216,7 @@ Start (web tier first)
 ```
 sudo systemctl start tomcat-webgw; sleep 5
 sudo systemctl start tomcat-appsvc; sleep 5
-systemctl is-active tomcat-webgw tomcat-appsvc          # both must say active
+systemctl is-active tomcat-webgw tomcat-appsvc             # both must say active
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)'           # all four must listen
 ```
 
@@ -271,7 +290,7 @@ sudo rm -f /etc/apache2/conf-available/pushgate.conf
 sudo systemctl reload apache2 2>/dev/null || true
 
 # Verify nothing is left
-systemctl list-units --all 'tomcat-webtier*' 'tomcat-apptier*' --no-pager
+systemctl list-units --all 'tomcat-webgw*' 'tomcat-appsvc*' --no-pager
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clean"
 ls -d /srv/webtier /srv/apptier 2>/dev/null || echo "instances removed"
 ```
