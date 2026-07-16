@@ -112,7 +112,7 @@ grep -nE '<Server port=|<Connector port=' /opt/tomcat11/conf/server.xml
 
 Pre-flight cleanup (clear stale instances from a previous run)
 ```
-sudo systemctl stop tomcat-webgw tomcat-appsvc 2>/dev/null
+sudo systemctl stop tomcat-webtier tomcat-appstier 2>/dev/null
 sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
 sleep 2
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clear to start"
