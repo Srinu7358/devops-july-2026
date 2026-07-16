@@ -178,6 +178,163 @@ Remove-NetFirewallRule -DisplayName "IIS 8088" -ErrorAction SilentlyContinue
 # Remove-Item C:\labs\HelloIIS -Recurse -Force
 ```
 
+## Info - MSI Overview
+<pre>
+- An MSI is not a script
+- It's a relational database in a single .msi file
+- a set of tables (built on the old COM structured-storage format) that describe the desired 
+  end state of an installation
+  - the files to lay down
+  - the registry keys to write
+  - shortcuts, services, and the ordered actions to get there. 
+  - The Windows Installer service (msiexec.exe / msiserver) reads that database 
+    and executes it transactionally.
+</pre>
+
+## Lab - Install and verify an MSI silently
+
+Confirm admin rights and .NET SDK (SDK came with the IIS lab)
+```
+whoami /groups | findstr /i "S-1-5-32-544"     # Administrators present
+dotnet --version                                # SDK present (needed only to build the sample)
+```
+
+Install the WiX build tool
+```
+dotnet tool install --global wix
+wix --version
+```
+
+Create the WiX source for a trivial payload
+```
+if (-not (Test-Path C:\labs\msi)) { New-Item -ItemType Directory C:\labs\msi -Force }
+Set-Location C:\labs\msi
+
+# a trivial file to install
+"HelloMSI payload $(Get-Date)" | Out-File -Encoding utf8 C:\labs\msi\hello.txt
+
+# generate a stable UpgradeCode once and reuse it
+$UpgradeCode = [guid]::NewGuid().ToString()
+$UpgradeCode | Out-File C:\labs\msi\upgradecode.txt
+"UpgradeCode = $UpgradeCode"
+```
+
+Write HelloMSI.wxs (paste the UpgradeCode from above into UpgradeCode="...")
+```
+@'
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="HelloMSI" Manufacturer="TekTutor"
+           Version="1.0.0.0" UpgradeCode="PUT-UPGRADECODE-HERE">
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="HelloMSI" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="HelloMSI" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Component>
+        <File Source="C:\labs\msi\hello.txt" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
+'@ | Out-File -Encoding utf8 C:\labs\msi\HelloMSI.wxs
+
+# inject the real UpgradeCode
+(Get-Content C:\labs\msi\HelloMSI.wxs) `
+  -replace 'PUT-UPGRADECODE-HERE', (Get-Content C:\labs\msi\upgradecode.txt) |
+  Set-Content C:\labs\msi\HelloMSI.wxs
+Get-Content C:\labs\msi\HelloMSI.wxs
+```
+
+Build the MSI
+```
+Set-Location C:\labs\msi
+wix build HelloMSI.wxs -o C:\labs\msi\HelloMSI.msi
+Get-Item C:\labs\msi\HelloMSI.msi
+```
+
+Set the target MSI
+```
+$Msi = "C:\labs\msi\HelloMSI.msi"
+$Log = "C:\labs\msi\install.log"
+```
+
+Silent install with a full verbose log
+```
+$p = Start-Process msiexec.exe `
+       -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$Log`"" `
+       -Wait -PassThru
+"msiexec exit code: $($p.ExitCode)"
+```
+
+Interpret the exit code (0 and 3010 are BOTH success)
+```
+switch ($p.ExitCode) {
+  0     { "SUCCESS (no reboot needed)" }
+  3010  { "SUCCESS (reboot required)"  }
+  1602  { "FAIL: user cancelled" }
+  1603  { "FAIL: fatal error during install (read the log)" }
+  1618  { "FAIL: another install already in progress" }
+  1619  { "FAIL: MSI could not be opened (bad path?)" }
+  1620  { "FAIL: MSI could not be opened (bad package)" }
+  default { "Exit code $($p.ExitCode) - look it up / read the log" }
+}
+```
+Parse the verbose log for the outcome
+```
+# the line that reports the overall result
+Select-String -Path $Log -Pattern "Installation success or error status" | Select -Last 1
+# any failed action shows "Return value 3" (this is what triggers rollback)
+Select-String -Path $Log -Pattern "Return value 3"
+# the human summary near the end
+Select-String -Path $Log -Pattern "Product: .* Installation (completed|failed)"
+```
+
+Confirm the payload actually landed
+```
+Test-Path "C:\Program Files\HelloMSI\hello.txt"     # expect True
+Get-Content "C:\Program Files\HelloMSI\hello.txt"
+```
+
+Confirm the product is registered with Windows Installer
+```
+Get-CimInstance Win32_Product -Filter "Name='HelloMSI'" |
+  Select Name, Version, IdentifyingNumber       # IdentifyingNumber = ProductCode
+# (Win32_Product is slow but fine for a lab; note the ProductCode GUID it returns)
+```
+
+Uninstall by pointing /x at the MSI file
+```
+$ulog = "C:\labs\msi\uninstall.log"
+$u = Start-Process msiexec.exe `
+       -ArgumentList "/x `"$Msi`" /qn /norestart /l*v `"$ulog`"" `
+       -Wait -PassThru
+"uninstall exit code: $($u.ExitCode)"     # 0 or 3010 = success
+```
+
+Verify removal
+```
+Test-Path "C:\Program Files\HelloMSI\hello.txt"     # expect False
+Get-CimInstance Win32_Product -Filter "Name='HelloMSI'"   # expect no rows
+Select-String -Path $ulog -Pattern "Installation success or error status" | Select -Last 1
+```
+
+Teardown (remove lab files; product is already uninstalled)
+```
+# uninstall tool only; leaves nothing installed on the box
+# dotnet tool uninstall --global wix
+Remove-Item C:\labs\msi -Recurse -Force
+```
 
 
 ## Info - Configuration Management Tool
