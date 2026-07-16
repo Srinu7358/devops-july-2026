@@ -39,15 +39,15 @@ address="127.0.0.1"
 redirectPort="8443"/>
 ```
 
-Build the web and app tier
+Build the web and app tier ( do this as non-admin user )
 ```
 export CATALINA_HOME=/opt/tomcat11
 cd web-tier && ./build.sh && cd ..
 cd app-tier && ./build.sh && cd ..
 
 # Deploy
-cp web-tier/ROOT.war /opt/tomcat11/webtier/webapps/
-cp app-tier/ROOT.war /opt/tomcat11/apptier/webapps/
+sudo cp web-tier/ROOT.war /opt/tomcat11/webtier/webapps/
+sudo cp app-tier/ROOT.war /opt/tomcat11/apptier/webapps/
 ```
 
 Start the web tier first
