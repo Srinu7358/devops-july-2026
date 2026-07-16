@@ -157,6 +157,10 @@ sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' && echo CLASH || echo "ports fr
 
 Install systemd units (edit CATALINA_HOME/JAVA_HOME/User in both first)
 ```
+cd ~/devops-july-2026
+git pull
+cd Day3/pluginconf-srv
+
 sed -i 's#/opt/tomcat\b#/opt/tomcat11#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
 sudo cp systemd/tomcat-webtier.service /etc/systemd/system/
 sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
