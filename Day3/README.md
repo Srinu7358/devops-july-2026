@@ -52,13 +52,13 @@ sudo cp app-tier/ROOT.war /opt/tomcat11/apptier/webapps/
 
 Start the web tier first
 ```
-CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh start
-CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh start
+sudo CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh start
+sudo CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh start
 ```
 
 Confirm the push landed
 ```
-grep -i "push plugin" /opt/tomcat11/apptier/logs/catalina.out
+sudo grep -i "push plugin" /opt/tomcat11/apptier/logs/catalina.out
 # push plugin: pushed to web tier, reply 200 (stored 2 paths
 ```
 
@@ -98,8 +98,8 @@ curl -i http://127.0.0.1:8080/api/orders
 
 Stop both instances
 ```
-CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh stop
-CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
+sudo CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh stop
+sudo CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
 ```
 
 ## Lab2 - App Server push plugin to restrict access to the Web server
