@@ -945,7 +945,7 @@ curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
 # 4. Git has the committed package .zip for the increment.
 ```
 
-## Lab6 - Deploy an Appian application across environments
+## Lab7 - Deploy an Appian application across environments
 
 Understand the environment model (read first)
 ```
