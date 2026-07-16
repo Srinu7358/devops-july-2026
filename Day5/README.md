@@ -551,25 +551,9 @@ docker run -d --name app2 --network ssolab -p 9002:80 \
 
 #### Protect app1 with oauth2-proxy, restricted to the developers group
 
-```bash
-# --network host is the key change. With host networking, one set of
-# localhost URLs is correct for the browser, the proxy, Keycloak (8080),
-# and the upstream (9001) all at once. The token issuer "iss" then matches
-# --oidc-issuer-url exactly, which oauth2-proxy validates strictly.
-# Drop --network ssolab and -p 4180:4180 when using host networking.
-# (Linux Docker host only; host networking does not work on Docker Desktop.)
-#
-# --client-secret uses the $APP1_CLIENT_SECRET env var captured earlier.
-#   Use DOUBLE quotes so bash expands it. Single quotes pass the literal text.
-# --scope drops "groups": the group claim comes from the client mapper above,
-#   which is unconditional, so requesting a "groups" scope is unnecessary and
-#   fails with invalid_scope unless you also create a "groups" client scope.
-# --cookie-secret is a clean 32-byte base64 value. Do NOT cut it to 32 chars.
-# --insecure-oidc-allow-unverified-email is required because LDAP-federated
-#   users have emailVerified=false, and oauth2-proxy rejects unverified emails
-#   with a 500 at the callback otherwise.
+```
 docker rm -f proxy-app1 2>/dev/null
-COOKIE1=$(openssl rand -base64 32)
+COOKIE1=$(openssl rand -base64 24)
 docker run -d --name proxy-app1 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
@@ -590,11 +574,20 @@ docker run -d --name proxy-app1 --network host \
 
 #### Protect app2 the same way on 4181
 
-```bash
-# same fixes as proxy-app1: $APP2_CLIENT_SECRET in double quotes, scope without
-# "groups", clean cookie secret, and the unverified-email flag.
+```
+# 1. confirm app2's secret var is populated (re-capture if empty or new shell)
+echo "APP2_CLIENT_SECRET=$APP2_CLIENT_SECRET"
+
+# if empty:
+A2=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
+  --query clientId=app2 --fields id --format csv --noquotes | tail -1)
+APP2_CLIENT_SECRET=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get \
+  "clients/$A2/client-secret" -r tektutor --fields value --format csv --noquotes | tail -1)
+echo "APP2_CLIENT_SECRET=$APP2_CLIENT_SECRET"
+
 docker rm -f proxy-app2 2>/dev/null
-COOKIE2=$(openssl rand -base64 32)
+COOKIE2=$(openssl rand -base64 24)
+echo "cookie len = ${#COOKIE2}"   # must be 32
 docker run -d --name proxy-app2 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
