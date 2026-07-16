@@ -1,5 +1,342 @@
 # Day 4
 
+## Info - IIS as the web and application host for .NET
+<pre>
+- IIS (Internet Information Services) is Windows built-in web server
+- For .NET it plays two roles at once
+  - the web server that terminates HTTP/HTTPS and serves static content and 
+  - the process host that launches and supervises your application's worker processes
+- The rough Tomcat parallel, since you've been living in that world
+  - IIS is like Apache httpd and the servlet container's process management fused into one Windows service
+  
+- Application pools
+  - An application pool is the isolation and process boundary
+  - Each pool runs one or more worker processes (w3wp.exe), and sites assigned to a pool share 
+    that process space
+  - Pools are how you isolate apps from each other on the same server, one crashing app doesn't take 
+    down the others
+  
+- CLR version
+  - Historically this selected the .NET Framework runtime (v2.0 vs v4.0). 
+  - The critical modern gotcha: for ASP.NET Core, you set this to "No Managed Code." ASP.NET Core doesn't 
+    load the .NET Framework CLR into the worker, the app runs its own .NET (Core) runtime out of process or 
+    in a native module, so the pool shouldn't load a managed runtime at all
+  - Setting a CLR version for a Core app is a common misconfiguration
+  
+- Pipeline mode
+  - Integrated vs Classic. 
+    - Integrated (the default and correct choice for anything modern) merges the IIS and ASP.NET request 
+      pipelines so managed modules see every request. 
+    - Classic mode emulates old IIS 6 behavior and exists only for legacy apps.
+  
+- Identity
+  - The Windows account the worker runs as. ApplicationPoolIdentity is the default and the right choice for 
+    most cases, a virtual, per-pool account (IIS AppPool\<PoolName>) with minimal rights, so you grant file/DB 
+    access to that specific identity
+  - Alternatives are NetworkService, LocalService, LocalSystem (avoid, over-privileged), or a specific domain/local 
+    account when the app needs particular network or database credentials.
+  - This is the direct analog of the tomcat user you've been running instances as.
+
+- Recycling
+  - IIS periodically tears down and restarts worker processes to shed leaked memory and stale state. 
+  - Triggers include a fixed time interval (default was 29 hours / 1740 minutes), specific clock times, 
+    a request count, or private-memory / virtual-memory thresholds. 
+  - Recycling overlaps by default (new worker spins up before the old one drains) so it's normally graceful. 
+  - The thing to know
+    - recycling drops in-process session state and anything cached in memory, which is exactly the failure 
+      mode you just spent hours on with Tomcat session replication, same lesson, different host. 
+    - For Core apps recycling matters less since state usually lives outside the worker.
+
+- Sites and bindings
+  - A site is a top-level unit with its own root path and one or more bindings
+  - Under a site you can have applications (each mapped to a pool and a virtual path) and virtual directories 
+    (path aliases to content elsewhere on disk).
+
+  - A binding is how IIS decides which site answers a request. 
+  - A binding is the tuple: protocol + IP address + port + host header (plus an optional SNI/certificate for HTTPS). 
+  - Examples: 
+    - http/*:80 catches all host names on port 80
+    - https/*:443 with host header shop.example.com and a bound certificate serves just that host over TLS
+</pre>
+
+## Lab - Deploy a Hello World application to IIS
+
+Confirm the box and admin rights
+```
+Get-ComputerInfo | Select WindowsProductName, OsVersion, OsServerLevel
+whoami /groups | findstr /i "S-1-5-32-544"    # Administrators present
+```
+
+Install the IIS role FIRST (before the Hosting Bundle)
+```
+Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+# useful sub-features for this lab
+Install-WindowsFeature Web-Mgmt-Console, Web-Scripting-Tools
+Get-Service W3SVC                              # should be Running
+```
+
+Install the .NET SDK (to build the app)
+```
+# If winget is present (Desktop Experience usually has it):
+winget install Microsoft.DotNet.SDK.8
+# If winget is NOT available (common on Server Core), download the SDK installer:
+#   https://dotnet.microsoft.com/download/dotnet/8.0  -> SDK x64 -> run silently:
+#   Start-Process .\dotnet-sdk-8.x.x-win-x64.exe -ArgumentList '/quiet /norestart' -Wait
+dotnet --version
+```
+
+Install the .NET Hosting Bundle AFTER IIS (registers the ASP.NET Core Module)
+```
+winget install Microsoft.DotNet.HostingBundle.8
+# or download "ASP.NET Core Hosting Bundle" from the same .NET 8 page and:
+#   Start-Process .\dotnet-hosting-8.x.x-win.exe -ArgumentList '/quiet /norestart' -Wait
+
+# reload IIS so ANCM (AspNetCoreModuleV2) registers
+net stop was /y
+net start w3svc
+```
+
+Confirm the ASP.NET Core Module registered
+```
+Import-Module WebAdministration
+Get-WebGlobalModule | Where-Object { $_.Name -like "AspNetCore*" }
+# expect: AspNetCoreModuleV2
+```
+
+Create the minimal app
+```
+if (-not (Test-Path C:\labs)) { New-Item -ItemType Directory C:\labs }
+Set-Location C:\labs
+dotnet new web -o HelloIIS
+Set-Location C:\labs\HelloIIS
+```
+
+Sanity-check locally, then stop
+```
+dotnet run
+# browse the shown http://localhost:5xxx, confirm "Hello World!", then Ctrl+C
+```
+
+Publish a Release build
+```
+dotnet publish -c Release -o C:\labs\HelloIIS\publish
+Get-ChildItem C:\labs\HelloIIS\publish        # note web.config is generated here
+```
+
+Create an application pool set to No Managed Code
+```
+New-WebAppPool -Name "HelloIISPool"
+Set-ItemProperty IIS:\AppPools\HelloIISPool -Name managedRuntimeVersion -Value ""   # No Managed Code
+Set-ItemProperty IIS:\AppPools\HelloIISPool -Name managedPipelineMode  -Value 0     # Integrated
+Get-ItemProperty IIS:\AppPools\HelloIISPool | Select name, managedRuntimeVersion, managedPipelineMode
+```
+
+Grant the pool identity read/execute on the publish folder
+```
+icacls C:\labs\HelloIIS\publish /grant "IIS AppPool\HelloIISPool:(OI)(CI)RX" /T
+```
+
+Create a site bound to port 8088 pointing at the publish folder
+```
+New-WebSite -Name "HelloIIS" `
+            -PhysicalPath "C:\labs\HelloIIS\publish" `
+            -ApplicationPool "HelloIISPool" `
+            -Port 8088
+Start-WebSite -Name "HelloIIS"
+Get-WebSite -Name "HelloIIS"
+```
+
+Open the firewall for port 8088
+```
+New-NetFirewallRule -DisplayName "IIS 8088" -Direction Inbound -Protocol TCP -LocalPort 8088 -Action Allow
+```
+
+Browse and confirm
+```
+(Invoke-WebRequest http://localhost:8088 -UseBasicParsing).Content    # Hello World!
+(Invoke-WebRequest http://localhost:8088 -UseBasicParsing).StatusCode # 200
+```
+
+Read the generated web.config
+```
+Get-Content C:\labs\HelloIIS\publish\web.config
+```
+
+Verify the whole setu
+```
+Get-Service W3SVC
+Get-ItemProperty IIS:\AppPools\HelloIISPool | Select name, state, managedRuntimeVersion
+Get-WebBinding -Name "HelloIIS"
+Get-WebGlobalModule | ? { $_.Name -like "AspNetCore*" }
+```
+
+Teardown (clean site, pool, port before the next lab)
+```
+Remove-WebSite -Name "HelloIIS"
+Remove-WebAppPool -Name "HelloIISPool"
+Remove-NetFirewallRule -DisplayName "IIS 8088" -ErrorAction SilentlyContinue
+# Remove-Item C:\labs\HelloIIS -Recurse -Force
+```
+
+## Info - MSI Overview
+<pre>
+- An MSI is not a script
+- It's a relational database in a single .msi file
+- a set of tables (built on the old COM structured-storage format) that describe the desired 
+  end state of an installation
+  - the files to lay down
+  - the registry keys to write
+  - shortcuts, services, and the ordered actions to get there. 
+  - The Windows Installer service (msiexec.exe / msiserver) reads that database 
+    and executes it transactionally.
+</pre>
+
+## Lab - Install and verify an MSI silently
+
+Confirm admin rights and .NET SDK (SDK came with the IIS lab)
+```
+whoami /groups | findstr /i "S-1-5-32-544"     # Administrators present
+dotnet --version                                # SDK present (needed only to build the sample)
+```
+
+Install the WiX build tool
+```
+dotnet tool install --global wix
+wix --version
+```
+
+Create the WiX source for a trivial payload
+```
+if (-not (Test-Path C:\labs\msi)) { New-Item -ItemType Directory C:\labs\msi -Force }
+Set-Location C:\labs\msi
+
+# a trivial file to install
+"HelloMSI payload $(Get-Date)" | Out-File -Encoding utf8 C:\labs\msi\hello.txt
+
+# generate a stable UpgradeCode once and reuse it
+$UpgradeCode = [guid]::NewGuid().ToString()
+$UpgradeCode | Out-File C:\labs\msi\upgradecode.txt
+"UpgradeCode = $UpgradeCode"
+```
+
+Write HelloMSI.wxs (paste the UpgradeCode from above into UpgradeCode="...")
+```
+@'
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="HelloMSI" Manufacturer="TekTutor"
+           Version="1.0.0.0" UpgradeCode="PUT-UPGRADECODE-HERE">
+    <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="HelloMSI" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+    </Feature>
+  </Package>
+
+  <Fragment>
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="HelloMSI" />
+    </StandardDirectory>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Component>
+        <File Source="C:\labs\msi\hello.txt" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>
+'@ | Out-File -Encoding utf8 C:\labs\msi\HelloMSI.wxs
+
+# inject the real UpgradeCode
+(Get-Content C:\labs\msi\HelloMSI.wxs) `
+  -replace 'PUT-UPGRADECODE-HERE', (Get-Content C:\labs\msi\upgradecode.txt) |
+  Set-Content C:\labs\msi\HelloMSI.wxs
+Get-Content C:\labs\msi\HelloMSI.wxs
+```
+
+Build the MSI
+```
+Set-Location C:\labs\msi
+wix build HelloMSI.wxs -o C:\labs\msi\HelloMSI.msi
+Get-Item C:\labs\msi\HelloMSI.msi
+```
+
+Set the target MSI
+```
+$Msi = "C:\labs\msi\HelloMSI.msi"
+$Log = "C:\labs\msi\install.log"
+```
+
+Silent install with a full verbose log
+```
+$p = Start-Process msiexec.exe `
+       -ArgumentList "/i `"$Msi`" /qn /norestart /l*v `"$Log`"" `
+       -Wait -PassThru
+"msiexec exit code: $($p.ExitCode)"
+```
+
+Interpret the exit code (0 and 3010 are BOTH success)
+```
+switch ($p.ExitCode) {
+  0     { "SUCCESS (no reboot needed)" }
+  3010  { "SUCCESS (reboot required)"  }
+  1602  { "FAIL: user cancelled" }
+  1603  { "FAIL: fatal error during install (read the log)" }
+  1618  { "FAIL: another install already in progress" }
+  1619  { "FAIL: MSI could not be opened (bad path?)" }
+  1620  { "FAIL: MSI could not be opened (bad package)" }
+  default { "Exit code $($p.ExitCode) - look it up / read the log" }
+}
+```
+Parse the verbose log for the outcome
+```
+# the line that reports the overall result
+Select-String -Path $Log -Pattern "Installation success or error status" | Select -Last 1
+# any failed action shows "Return value 3" (this is what triggers rollback)
+Select-String -Path $Log -Pattern "Return value 3"
+# the human summary near the end
+Select-String -Path $Log -Pattern "Product: .* Installation (completed|failed)"
+```
+
+Confirm the payload actually landed
+```
+Test-Path "C:\Program Files\HelloMSI\hello.txt"     # expect True
+Get-Content "C:\Program Files\HelloMSI\hello.txt"
+```
+
+Confirm the product is registered with Windows Installer
+```
+Get-CimInstance Win32_Product -Filter "Name='HelloMSI'" |
+  Select Name, Version, IdentifyingNumber       # IdentifyingNumber = ProductCode
+# (Win32_Product is slow but fine for a lab; note the ProductCode GUID it returns)
+```
+
+Uninstall by pointing /x at the MSI file
+```
+$ulog = "C:\labs\msi\uninstall.log"
+$u = Start-Process msiexec.exe `
+       -ArgumentList "/x `"$Msi`" /qn /norestart /l*v `"$ulog`"" `
+       -Wait -PassThru
+"uninstall exit code: $($u.ExitCode)"     # 0 or 3010 = success
+```
+
+Verify removal
+```
+Test-Path "C:\Program Files\HelloMSI\hello.txt"     # expect False
+Get-CimInstance Win32_Product -Filter "Name='HelloMSI'"   # expect no rows
+Select-String -Path $ulog -Pattern "Installation success or error status" | Select -Last 1
+```
+
+Teardown (remove lab files; product is already uninstalled)
+```
+# uninstall tool only; leaves nothing installed on the box
+# dotnet tool uninstall --global wix
+Remove-Item C:\labs\msi -Recurse -Force
+```
+
+
 ## Info - Configuration Management Tool
 <pre>
 - are used by System Administrator or DevOps engineers to automate their administrative activities
