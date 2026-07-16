@@ -419,3 +419,166 @@ One-shot check
 ./scripts/verify.sh
 ```
 
+## Lab4 - NAS Mounts across a Tomcat Fleet (NFS)
+
+Install the NFS server and client packages
+```
+sudo apt-get update
+sudo apt-get install -y nfs-kernel-server nfs-common rpcbind
+```
+
+Create the export directories
+```
+sudo mkdir -p /srv/nfs/appbin /srv/nfs/deploy /srv/nfs/logs
+```
+
+Set ownership so the tomcat fleet can read/write
+```
+sudo chown -R tomcat:tomcat /srv/nfs/deploy /srv/nfs/logs
+sudo chmod 0775 /srv/nfs/deploy /srv/nfs/logs
+sudo chmod 0755 /srv/nfs/appbin
+# seed a marker so you can see the share is live
+echo "shared binary drop" | sudo tee /srv/nfs/appbin/README.txt >/dev/null
+```
+
+Configure the exports (single host: export to 127.0.0.1)
+```
+sudo tee -a /etc/exports >/dev/null <<'EOF'
+/srv/nfs/appbin  127.0.0.1(ro,sync,no_subtree_check)
+/srv/nfs/deploy  127.0.0.1(rw,sync,no_subtree_check,no_root_squash)
+/srv/nfs/logs    127.0.0.1(rw,sync,no_subtree_check,no_root_squash)
+EOF
+cat /etc/exports
+```
+
+Apply the exports and start the server
+```
+sudo exportfs -ra
+sudo systemctl enable --now nfs-kernel-server
+sudo systemctl is-active nfs-kernel-server
+```
+
+Verify the exports are published
+```
+sudo exportfs -v
+showmount -e 127.0.0.1
+```
+
+Create the client mount points
+```
+sudo mkdir -p /mnt/appbin /mnt/deploy /mnt/logs
+```
+
+Mount manually with mount -t nfs (verify before making persistent)
+```
+sudo mount -t nfs 127.0.0.1:/srv/nfs/appbin /mnt/appbin
+sudo mount -t nfs 127.0.0.1:/srv/nfs/deploy /mnt/deploy
+sudo mount -t nfs 127.0.0.1:/srv/nfs/logs   /mnt/logs
+```
+
+Confirm the mounts and that the share content is visible
+```
+findmnt -t nfs
+cat /mnt/appbin/README.txt        # proves the read-only binary share works
+echo "hello from client" | sudo tee /mnt/deploy/test.txt >/dev/null
+ls -l /srv/nfs/deploy/test.txt    # written through the mount, lands in the export
+```
+
+Make the mounts persistent in /etc/fstab with _netdev
+```
+sudo tee -a /etc/fstab >/dev/null <<'EOF'
+127.0.0.1:/srv/nfs/appbin  /mnt/appbin  nfs  ro,hard,bg,_netdev,nofail,timeo=50,retrans=3  0 0
+127.0.0.1:/srv/nfs/deploy  /mnt/deploy  nfs  rw,soft,bg,_netdev,nofail,timeo=30,retrans=3  0 0
+127.0.0.1:/srv/nfs/logs    /mnt/logs    nfs  rw,soft,bg,_netdev,nofail,timeo=30,retrans=3  0 0
+EOF
+```
+
+Test the fstab entries without rebooting
+```
+sudo umount /mnt/appbin /mnt/deploy /mnt/logs
+sudo mount -a
+findmnt -t nfs                    # all three should reappear from fstab
+```
+
+Soft vs hard mounts (know which to use where)
+```
+# hard  (fstab default): I/O retries forever. If the NAS stalls, a process
+#        touching the mount blocks indefinitely and cannot be killed cleanly.
+#        Safe for data integrity on writes; dangerous for availability.
+# soft  : gives up after timeo*retrans, returns an I/O error instead of hanging.
+#         Safe for availability; risks a truncated write on an interrupted op.
+#
+# Guidance used above:
+#   appbin  -> ro,hard   read-only, integrity matters, never being written
+#   deploy  -> rw,soft   a NAS stall must not wedge a deploy or a boot
+#   logs    -> rw,soft   a NAS stall must not wedge Tomcat logging or startup
+#
+# timeo is tenths of a second: timeo=30 = 3s per try, retrans=3 = 3 tries.
+```
+
+Demonstrate the hung-mount risk
+```
+# stop the NAS to simulate an outage
+sudo systemctl stop nfs-kernel-server
+
+# soft mount: fails fast with an error (a few seconds), does NOT hang
+timeout 20 ls /mnt/logs; echo "soft mount returned rc=$?"
+
+# hard mount: blocks. timeout kills the ls so your shell survives the demo
+timeout 8 ls /mnt/appbin; echo "hard mount returned rc=$? (124 = it hung)"
+
+# bring the NAS back
+sudo systemctl start nfs-kernel-server
+```
+
+Why a hung mount can block Tomcat startup, and how the fstab above prevents it
+```
+# The risk: if a Tomcat instance keeps webapps, logs, or CATALINA_BASE on a
+# HARD NFS mount and the NAS is down at boot, any startup step that stats that
+# path blocks forever. systemd waits on remote-fs, and the Tomcat unit (which
+# runs After=network/remote-fs) never starts. One dead NAS wedges the fleet.
+#
+# The mitigations, all present in the fstab lines above:
+#   _netdev  order the mount after the network is up
+#   nofail   boot proceeds even if the mount fails; the unit is not blocked
+#   bg       retry the mount in the background instead of blocking foreground
+#   soft     for writable shares, return an error instead of hanging forever
+#
+# Extra safety for the Tomcat units: make them tolerant, not dependent.
+#   In each unit add:  After=remote-fs.target   (order, not hard requirement)
+#   Keep logs on 'soft' so a stalled NAS degrades logging instead of startup.
+```
+
+Wire the fleet to the shared folders (optional integration with node1)
+```
+# shared deployment drop: copy a WAR into the drop folder, deploy from there
+sudo cp /srv/node1/webapps/ROOT.war /mnt/deploy/ 2>/dev/null || true
+# a node can deploy by copying from the shared drop:
+# sudo cp /mnt/deploy/app.war /srv/node1/webapps/
+
+# shared logs: point node1's access logs at the shared mount
+sudo mkdir -p /mnt/logs/node1
+sudo chown tomcat:tomcat /mnt/logs/node1
+# in /srv/node1/conf/server.xml, set the AccessLogValve directory to
+#   directory="/mnt/logs/node1"   then restart node1
+```
+
+Verify the whole setup
+```
+findmnt -t nfs
+df -h -t nfs
+showmount -e 127.0.0.1
+ls -l /mnt/appbin /mnt/deploy /mnt/logs
+```
+
+Teardown (important: unmount and clean fstab before the next lab, or a stale NFS entry can hang a future boot)
+```
+sudo umount -f -l /mnt/appbin /mnt/deploy /mnt/logs 2>/dev/null
+sudo sed -i '\#127.0.0.1:/srv/nfs/#d' /etc/fstab
+sudo sed -i '\#/srv/nfs/#d' /etc/exports
+sudo exportfs -ra
+# optional: stop the server and remove the data
+# sudo systemctl disable --now nfs-kernel-server
+# sudo rm -rf /srv/nfs
+findmnt -t nfs || echo "no nfs mounts left"
+```
