@@ -1,5 +1,24 @@
 # Day 5
 
+## Info - Container Orchestration Platform
+<pre>
+- provides an environment with all the required features to make your application Highly Available
+- it provides in-built monitoring features, self-healing features
+- it supports scale up/down your application on-demand either manually or automatically based performance metrics
+- it supports rolling update
+  - upgrading/downgrading your application from one version to other without any downtime
+- it supports features to expose your applicaiton only for applications that runs on the container orchestration platforms
+  or to external access
+- it provides in-built load balancing
+- the application that you wish to run inside container orchestration platform, should be containerized in a
+  custom container image
+- this platform only manages containerized application workloads
+- examples
+  - Docker SWARM
+  - Kubernetes
+  - Red Hat Openshift
+</pre>
+
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
 - OpenLDAP is where identities live
