@@ -138,6 +138,7 @@ oc get pods -o json | grep image
 
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f6ece236-c31c-4fff-8179-db9c5e70f075" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e9f40916-3e81-4743-ba86-38a622374d96" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/dee9ab9e-2bcd-4bbd-a423-cc4fbbc3f487" />
 
 ## Lab - Source to Image (S2I) Docker Strategy - deploy application into openshift using GitHub source code
 ```
