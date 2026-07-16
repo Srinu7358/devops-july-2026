@@ -57,6 +57,128 @@
   - Examples: 
     - http/*:80 catches all host names on port 80
     - https/*:443 with host header shop.example.com and a bound certificate serves just that host over TLS
+</pre>
+
+## Lab - Deploy a Hello World application to IIS
+
+Confirm the box and admin rights
+```
+Get-ComputerInfo | Select WindowsProductName, OsVersion, OsServerLevel
+whoami /groups | findstr /i "S-1-5-32-544"    # Administrators present
+```
+
+Install the IIS role FIRST (before the Hosting Bundle)
+```
+Install-WindowsFeature -Name Web-Server -IncludeManagementTools
+# useful sub-features for this lab
+Install-WindowsFeature Web-Mgmt-Console, Web-Scripting-Tools
+Get-Service W3SVC                              # should be Running
+```
+
+Install the .NET SDK (to build the app)
+```
+# If winget is present (Desktop Experience usually has it):
+winget install Microsoft.DotNet.SDK.8
+# If winget is NOT available (common on Server Core), download the SDK installer:
+#   https://dotnet.microsoft.com/download/dotnet/8.0  -> SDK x64 -> run silently:
+#   Start-Process .\dotnet-sdk-8.x.x-win-x64.exe -ArgumentList '/quiet /norestart' -Wait
+dotnet --version
+```
+
+Install the .NET Hosting Bundle AFTER IIS (registers the ASP.NET Core Module)
+```
+winget install Microsoft.DotNet.HostingBundle.8
+# or download "ASP.NET Core Hosting Bundle" from the same .NET 8 page and:
+#   Start-Process .\dotnet-hosting-8.x.x-win.exe -ArgumentList '/quiet /norestart' -Wait
+
+# reload IIS so ANCM (AspNetCoreModuleV2) registers
+net stop was /y
+net start w3svc
+```
+
+Confirm the ASP.NET Core Module registered
+```
+Import-Module WebAdministration
+Get-WebGlobalModule | Where-Object { $_.Name -like "AspNetCore*" }
+# expect: AspNetCoreModuleV2
+```
+
+Create the minimal app
+```
+if (-not (Test-Path C:\labs)) { New-Item -ItemType Directory C:\labs }
+Set-Location C:\labs
+dotnet new web -o HelloIIS
+Set-Location C:\labs\HelloIIS
+```
+
+Sanity-check locally, then stop
+```
+dotnet run
+# browse the shown http://localhost:5xxx, confirm "Hello World!", then Ctrl+C
+```
+
+Publish a Release build
+```
+dotnet publish -c Release -o C:\labs\HelloIIS\publish
+Get-ChildItem C:\labs\HelloIIS\publish        # note web.config is generated here
+```
+
+Create an application pool set to No Managed Code
+```
+New-WebAppPool -Name "HelloIISPool"
+Set-ItemProperty IIS:\AppPools\HelloIISPool -Name managedRuntimeVersion -Value ""   # No Managed Code
+Set-ItemProperty IIS:\AppPools\HelloIISPool -Name managedPipelineMode  -Value 0     # Integrated
+Get-ItemProperty IIS:\AppPools\HelloIISPool | Select name, managedRuntimeVersion, managedPipelineMode
+```
+
+Grant the pool identity read/execute on the publish folder
+```
+icacls C:\labs\HelloIIS\publish /grant "IIS AppPool\HelloIISPool:(OI)(CI)RX" /T
+```
+
+Create a site bound to port 8088 pointing at the publish folder
+```
+New-WebSite -Name "HelloIIS" `
+            -PhysicalPath "C:\labs\HelloIIS\publish" `
+            -ApplicationPool "HelloIISPool" `
+            -Port 8088
+Start-WebSite -Name "HelloIIS"
+Get-WebSite -Name "HelloIIS"
+```
+
+Open the firewall for port 8088
+```
+New-NetFirewallRule -DisplayName "IIS 8088" -Direction Inbound -Protocol TCP -LocalPort 8088 -Action Allow
+```
+
+Browse and confirm
+```
+(Invoke-WebRequest http://localhost:8088 -UseBasicParsing).Content    # Hello World!
+(Invoke-WebRequest http://localhost:8088 -UseBasicParsing).StatusCode # 200
+```
+
+Read the generated web.config
+```
+Get-Content C:\labs\HelloIIS\publish\web.config
+```
+
+Verify the whole setu
+```
+Get-Service W3SVC
+Get-ItemProperty IIS:\AppPools\HelloIISPool | Select name, state, managedRuntimeVersion
+Get-WebBinding -Name "HelloIIS"
+Get-WebGlobalModule | ? { $_.Name -like "AspNetCore*" }
+```
+
+Teardown (clean site, pool, port before the next lab)
+```
+Remove-WebSite -Name "HelloIIS"
+Remove-WebAppPool -Name "HelloIISPool"
+Remove-NetFirewallRule -DisplayName "IIS 8088" -ErrorAction SilentlyContinue
+# Remove-Item C:\labs\HelloIIS -Recurse -Force
+```
+
+
 
 ## Info - Configuration Management Tool
 <pre>
