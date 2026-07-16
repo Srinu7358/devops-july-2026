@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee
+             https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+  <context-param>
+    <param-name>pushToken</param-name>
+    <param-value>s3cr3t-web-tier</param-value>
+  </context-param>
+  <context-param>
+    <param-name>backendBase</param-name>
+    <param-value>http://127.0.0.1:9090</param-value>
+  </context-param>
+</web-app>

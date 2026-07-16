@@ -1,0 +1,19 @@
+[Unit]
+Description=Tomcat web-tier gateway (push-gate lab)
+After=network.target
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+
+Environment=JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+Environment=CATALINA_HOME=/opt/tomcat11
+Environment=CATALINA_BASE=/srv/webtier
+Environment=CATALINA_PID=/srv/webtier/temp/tomcat.pid
+
+ExecStart=/opt/tomcat11/bin/catalina.sh start
+ExecStop=/opt/tomcat11/bin/catalina.sh stop
+
+[Install]
+WantedBy=multi-user.target

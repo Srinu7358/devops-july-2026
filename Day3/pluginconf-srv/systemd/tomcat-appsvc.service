@@ -1,0 +1,17 @@
+[Unit]
+Description=Tomcat app-tier services (plugin-conf lab, HTTP 9090)
+After=network.target tomcat-webgw.service
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+Environment=JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+Environment=CATALINA_HOME=/opt/tomcat11
+Environment=CATALINA_BASE=/srv/appsvc
+Environment=CATALINA_PID=/srv/appsvc/temp/tomcat.pid
+ExecStart=/opt/tomcat11/bin/catalina.sh start
+ExecStop=/opt/tomcat11/bin/catalina.sh stop
+
+[Install]
+WantedBy=multi-user.target
