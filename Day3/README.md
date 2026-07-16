@@ -20,7 +20,7 @@ Let's create 2 instances from one Tomcat installation
 export CATALINA_HOME=/opt/tomcat11
 for n in webtier apptier; do
 mkdir -p /opt/tomcat11/$n/{conf,logs,temp,webapps,work,bin}
-cp -r $CATALINA_HOME/conf/* /opt/tomcat/$n/conf/
+cp -r $CATALINA_HOME/conf/* /opt/tomcat11/$n/conf/
 done
 ```
 
