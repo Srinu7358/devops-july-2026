@@ -61,6 +61,11 @@
 
 ## Lab - Deploy a Hello World application to IIS
 
+Make sure you installed .Net 8 and the correct bundle
+```
+https://builds.dotnet.microsft.com/dotnet/aspnetcore/Runtime/8.0.29/dotnet-hosting-8.0.29-win.exe
+```
+
 Confirm the box and admin rights
 ```
 Get-ComputerInfo | Select WindowsProductName, OsVersion, OsServerLevel
