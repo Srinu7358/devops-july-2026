@@ -106,7 +106,7 @@ sudo CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
 
 Pre-flight cleanup (clear stale instances from a previous run)
 ```
-sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
+sudo systemctl stop tomcat-gw tomcat-appsvc 2>/dev/null
 sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
 sleep 2
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clear to start"
@@ -161,7 +161,7 @@ cd ~/devops-july-2026
 git pull
 cd Day3/pluginconf-srv
 
-sed -i 's#/opt/tomcat\b#/opt/tomcat11#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
+sed -i 's#/opt/tomcat11\b#/opt/tomcat11#g' systemd/tomcat-webgw.service systemd/tomcat-appsvc.service
 sudo cp systemd/tomcat-webgw.service /etc/systemd/system/
 sudo cp systemd/tomcat-appsvc.service /etc/systemd/system/
 sudo systemctl daemon-reload
