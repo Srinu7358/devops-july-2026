@@ -46,19 +46,19 @@ cd web-tier && ./build.sh && cd ..
 cd app-tier && ./build.sh && cd ..
 
 # Deploy
-cp web-tier/ROOT.war /opt/tomcat/webtier/webapps/
-cp app-tier/ROOT.war /opt/tomcat/apptier/webapps/
+cp web-tier/ROOT.war /opt/tomcat11/webtier/webapps/
+cp app-tier/ROOT.war /opt/tomcat11/apptier/webapps/
 ```
 
 Start the web tier first
 ```
-CATALINA_BASE=/opt/tomcat/webtier $CATALINA_HOME/bin/catalina.sh start
-CATALINA_BASE=/opt/tomcat/apptier $CATALINA_HOME/bin/catalina.sh start
+CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh start
+CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh start
 ```
 
 Confirm the push landed
 ```
-grep -i "push plugin" /opt/tomcat/apptier/logs/catalina.out
+grep -i "push plugin" /opt/tomcat11/apptier/logs/catalina.out
 # push plugin: pushed to web tier, reply 200 (stored 2 paths
 ```
 
@@ -77,7 +77,6 @@ curl http://127.0.0.1:8080/api/products
 curl http://127.0.0.1:8080/api/orders
 # app-tier: orders list [public
 ```
-
 Unapproved list must be denied
 ```
 # This should not work, should return 404
@@ -86,7 +85,6 @@ curl -i http://127.0.0.1:8080/api/internal/metrics
 # This should work
 curl -i http://127.0.0.1:9080/api/internal/metrics
 ```
-
 
 Test if app tier controls access dynamically
 ```
@@ -100,8 +98,8 @@ curl -i http://127.0.0.1:8080/api/orders
 
 Stop both instances
 ```
-CATALINA_BASE=/opt/tomcat/apptier $CATALINA_HOME/bin/catalina.sh stop
-CATALINA_BASE=/opt/tomcat/webtier $CATALINA_HOME/bin/catalina.sh stop
+CATALINA_BASE=/opt/tomcat11/apptier $CATALINA_HOME/bin/catalina.sh stop
+CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
 ```
 
 ## Lab2 - App Server push plugin to restrict access to the Web server
