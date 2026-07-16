@@ -20,22 +20,24 @@ sudo chown -R $TC_USER:$TC_USER /srv/webtier /srv/apptier
 
 Configure Web-tier ports
 ```
-sudo sed -i 's/port="8005"/port="9015"/' /srv/webtier/conf/server.xml
-sudo sed -i 's/port="8080"/port="9091"/' /srv/webtier/conf/server.xml
-sudo sed -i '/protocol="AJP\/1.3"/,/\/>/d' /srv/webtier/conf/server.xml
+sudo sed -i 's/port="8100"/port="9091"/' /srv/webtier/conf/server.xml
+sudo sed -i 's/<Server port="8007"/<Server port="9015"/' /srv/webtier/conf/server.xml
+sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/webtier/conf/server.xml
+grep -nE '<Server port=|<Connector port=' /srv/webtier/conf/server.xml
 ```
 
 Configure App-tier ports
 ```
-sudo sed -i 's/port="8005"/port="9016"/' /srv/apptier/conf/server.xml
-sudo sed -i 's/port="8080"/port="9092"/' /srv/apptier/conf/server.xml
-sudo sed -i '/protocol="AJP\/1.3"/,/\/>/d' /srv/apptier/conf/server.xml
+sudo sed -i 's/port="8100"/port="9092"/' /srv/apptier/conf/server.xml
+sudo sed -i 's/<Server port="8007"/<Server port="9016"/' /srv/apptier/conf/server.xml
+sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/apptier/conf/server.xml
+grep -nE '<Server port=|<Connector port=' /srv/apptier/conf/server.xml
 ```
 
 Bind to loopback
 ```
-sudo sed -i 's#\(<Connector port="9091" protocol="HTTP/1.1"\)#\1 address="127.0.0.1"#' /srv/webtier/conf/server.xml
-sudo sed -i 's#\(<Connector port="9092" protocol="HTTP/1.1"\)#\1 address="127.0.0.1"#' /srv/apptier/conf/server.xml
+sudo sed -i 's#<Connector port="9091" protocol="HTTP/1.1"#<Connector port="9091" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/webtier/conf/server.xml
+sudo sed -i 's#<Connector port="9092" protocol="HTTP/1.1"#<Connector port="9092" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/apptier/conf/server.xml
 ```
 
 Check ports free
@@ -45,6 +47,7 @@ sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' && echo CLASH || echo "ports fr
 
 Install systemd units (edit CATALINA_HOME/JAVA_HOME/User in both first)
 ```
+sed -i 's#/opt/tomcat\b#/opt/tomcat11#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
 sudo cp systemd/tomcat-webtier.service /etc/systemd/system/
 sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -80,6 +83,9 @@ Start (web tier first)
 ```
 sudo systemctl start tomcat-webtier; sleep 5
 sudo systemctl start tomcat-apptier; sleep 5
+
+systemctl is-active tomcat-webtier tomcat-apptier          # both must say active
+sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)'           # all four must listen
 ```
 
 Confirm push
@@ -129,6 +135,10 @@ curl -s http://127.0.0.1:9092/admin/publish
 Enable on boot
 ```
 sudo systemctl enable tomcat-webtier tomcat-apptier
+sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
+sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
+sleep 2
+sudo ss -ltnp | grep -E ':(9091|9092)' || echo "clear to start"
 ```
 
 
