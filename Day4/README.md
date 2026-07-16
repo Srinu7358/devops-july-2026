@@ -695,5 +695,5 @@ tower-cli config host http://192.168.49.2:30090
 tower-cli login admin
 tower-cli project list
 tower-cli job list
-tower-cli tower-cli job launch -J "Invoke Install Apache Playbook"
+tower-cli job launch -J "Invoke Install Apache Playbook"
 ```
