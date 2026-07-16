@@ -639,6 +639,8 @@ Wait and check
 kubectl -n awx get pods -w
 # Login
 minikube ip
+
+# This will show your ansible admin user password
 kubectl -n awx get secret awx-admin-password -o jsonpath='{.data.password}' | base64 -d; echo
 ```
 
@@ -651,13 +653,30 @@ kubectl -n awx patch awx awx --type=merge -p '{"spec":{"no_log":true}}'
 
 Setup your password
 ```
+# Delete existing awx-admin-password secret
+kubectl delete secret awx-admin-password -n awx
+
 kubectl -n awx create secret generic awx-admin-password \
   --from-literal=password='awx@123'
 ```
 
+Login credentials for Ansible Tower is
+<pre>
+username : admin
+password : awx@123
+</pre>
+
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7f40dabd-bff7-4674-9bff-5320627e6104" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/88a2cb4e-829f-41a0-8c78-842dc82c09b4" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/222f50c2-f0ed-4b63-ba21-2375375eb43f" />
+
+#### Troubleshooting minikube start failures
+```
+minikube delete
+sudo su student
+docker images
+minikube start --cpus=4 --memory=8g --driver=docker
+```
 
 ## Lab - Install Ansible Tower CLI tool
 To install tower-cli in Ubuntu
