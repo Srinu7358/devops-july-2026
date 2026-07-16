@@ -497,11 +497,11 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   -s name=groups \
   -s protocol=openid-connect \
   -s protocolMapper=oidc-group-membership-mapper \
-  -s 'config."claim.name"=["groups"]' \
-  -s 'config."full.path"=["false"]' \
-  -s 'config."id.token.claim"=["true"]' \
-  -s 'config."access.token.claim"=["true"]' \
-  -s 'config."userinfo.token.claim"=["true"]'
+  -s 'config."claim.name"=groups' \
+  -s 'config."full.path"=false' \
+  -s 'config."id.token.claim"=true' \
+  -s 'config."access.token.claim"=true' \
+  -s 'config."userinfo.token.claim"=true'
 done
 ```
 
