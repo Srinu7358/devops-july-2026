@@ -944,3 +944,214 @@ curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
 # 3. The post-deployment process shows an execution in the site's monitoring.
 # 4. Git has the committed package .zip for the increment.
 ```
+
+## Lab6 - Deploy an Appian application across environments
+
+Understand the environment model (read first)
+```
+# Community Edition = ONE hosted site. There is no separate second environment.
+# This lab models "two environments" as: export a package to a .zip artifact,
+# then inspect+import that artifact back. Every endpoint is exercised.
+# If your class has TWO Community sites, set a second host and import there
+# instead; the steps are identical apart from the target URL.
+export SRC_HOST="https://<yoursite>.appiancloud.com"
+export TGT_HOST="$SRC_HOST"     # same site; change to a 2nd site if you have one
+```
+
+Set your API credentials (from the Admin Console)
+```
+# Admin Console -> Infrastructure: enable the Deployment REST APIs.
+# Admin Console -> API Keys: create a service account, generate a key.
+export APPIAN_API_KEY="<paste-the-api-key>"
+export TGT_API_KEY="$APPIAN_API_KEY"   # change if the target is a 2nd site
+```
+
+Build the small application (in Appian Designer)
+```
+# Create a new Application (the container of design objects), then add:
+#   1 Record Type   (e.g. "Ticket", backed by an Appian Data Store or synced)
+#   1 Interface     (e.g. "TicketSummary", displays record data)
+#   1 Process Model (e.g. "CreateTicket", one node that writes a record)
+# Create a Package in the application and add all three objects to it.
+# Copy the package UUID from the package details:
+export PKG_UUID="<package-uuid>"
+```
+
+Manual export from the UI (Compare and Deploy / Export)
+```
+# In Appian Designer: open the application -> Deploy -> Export (or
+# Compare and Deploy). Download the exported package .zip.
+# Save it as the v1 artifact:
+mkdir -p ~/devops-july-2026/Day4/appian-xenv/packages
+mv ~/Downloads/<exported>.zip \
+   ~/devops-july-2026/Day4/appian-xenv/packages/ticket-app-v1.zip
+```
+
+Export again with the API (same package, now scripted)
+```
+curl -s -X POST "$SRC_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $APPIAN_API_KEY" \
+  -H "Action-Type: export" \
+  -F 'json={
+        "name": "export-ticket-app",
+        "packageUuids": ["'"$PKG_UUID"'"]
+      };type=application/json'
+# Response returns a deployment UUID:
+export DEP_UUID="<deployment-uuid-from-response>"
+```
+
+Poll the export until COMPLETED, then download the package .zip
+```
+curl -s "$SRC_HOST/suite/deployment-management/v2/deployments/$DEP_UUID" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# When COMPLETED, the response links the exported package .zip resource.
+# Download it (URL/field name is in that response) and save as the API artifact:
+curl -s -L "<package-zip-resource-url>" \
+  -H "appian-api-key: $APPIAN_API_KEY" \
+  -o ~/devops-july-2026/Day4/appian-xenv/packages/ticket-app-api.zip
+```
+
+Inspect the package against the TARGET before importing
+```
+curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/inspections" \
+  -H "appian-api-key: $TGT_API_KEY" \
+  -F 'zipFile=@'"$HOME"'/devops-july-2026/Day4/appian-xenv/packages/ticket-app-api.zip'
+export INSPECT_UUID="<inspection-uuid-from-response>"
+```
+
+Read inspection results (must be clean before import)
+```
+curl -s "$TGT_HOST/suite/deployment-management/v2/inspections/$INSPECT_UUID" \
+  -H "appian-api-key: $TGT_API_KEY"
+# Confirm no blocking problems. Inspect-before-import is Appian's rule.
+```
+
+Import to the target environment
+```
+curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $TGT_API_KEY" \
+  -H "Action-Type: import" \
+  -F 'json={ "name": "import-ticket-app-v1" };type=application/json' \
+  -F 'zipFile=@'"$HOME"'/devops-july-2026/Day4/appian-xenv/packages/ticket-app-api.zip'
+export IMPORT_UUID="<deployment-uuid-from-response>"
+```
+
+Read the deployment result and log
+```
+curl -s "$TGT_HOST/suite/deployment-management/v2/deployments/$IMPORT_UUID" \
+  -H "appian-api-key: $TGT_API_KEY"                       # poll to COMPLETED
+curl -s "$TGT_HOST/suite/deployment-management/v2/deployments/$IMPORT_UUID/log" \
+  -H "appian-api-key: $TGT_API_KEY"                       # per-object detail
+```
+
+Put the package artifacts under Automated Version Manager (Git)
+```
+cd ~/devops-july-2026/Day4/appian-xenv
+git init
+git add packages/ticket-app-v1.zip packages/ticket-app-api.zip
+git commit -m "ticket-app v1: manual + API export artifacts"
+git tag ticket-app-v1
+# Each future export commits a new versioned .zip; Git is the rollback source.
+```
+
+Wire export -> inspect -> import into a Jenkins job
+```
+# Store APPIAN_API_KEY and TGT_API_KEY as Jenkins credentials (not in the file).
+cat > ~/devops-july-2026/Day4/appian-xenv/Jenkinsfile <<'EOF'
+pipeline {
+  agent any
+  environment {
+    SRC_HOST = 'https://<yoursite>.appiancloud.com'
+    TGT_HOST = 'https://<yoursite>.appiancloud.com'
+    PKG_UUID = '<package-uuid>'
+    APPIAN_API_KEY = credentials('appian-src-api-key')
+    TGT_API_KEY    = credentials('appian-tgt-api-key')
+  }
+  stages {
+    stage('Export') {
+      steps {
+        sh '''
+          DEP=$(curl -s -X POST "$SRC_HOST/suite/deployment-management/v2/deployments" \
+            -H "appian-api-key: $APPIAN_API_KEY" -H "Action-Type: export" \
+            -F 'json={"name":"jenkins-export","packageUuids":["'"$PKG_UUID"'"]};type=application/json' \
+            | tee export.json)
+          echo "$DEP"
+          # parse the deployment uuid, poll until COMPLETED, download the .zip
+          # (use jq; field names per your Appian version's docs)
+        '''
+      }
+    }
+    stage('Inspect') {
+      steps {
+        sh '''
+          curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/inspections" \
+            -H "appian-api-key: $TGT_API_KEY" \
+            -F 'zipFile=@package.zip' | tee inspect.json
+          # fail the stage if inspection reports blocking problems
+        '''
+      }
+    }
+    stage('Import') {
+      steps {
+        sh '''
+          curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/deployments" \
+            -H "appian-api-key: $TGT_API_KEY" -H "Action-Type: import" \
+            -F 'json={"name":"jenkins-import"};type=application/json' \
+            -F 'zipFile=@package.zip' | tee import.json
+          # poll the import uuid to COMPLETED, then fetch /log; fail on FAILED
+        '''
+      }
+    }
+    stage('Archive to AVM') {
+      steps {
+        sh 'cp package.zip packages/ticket-app-${BUILD_NUMBER}.zip && git add packages && git commit -m "ci: ticket-app build ${BUILD_NUMBER}" || true'
+      }
+    }
+  }
+}
+EOF
+echo "Jenkinsfile written"
+```
+
+Reference the Appian devops-quickstart pipeline (adapt, don't reinvent)
+```
+git clone https://github.com/appian/devops-quickstart.git \
+  ~/devops-july-2026/Day4/devops-quickstart
+# Map its stages to the four above. It shows the polling + jq parsing patterns
+# for the deployment UUID and status that the stubs above leave as comments.
+```
+
+Make a v2 change, export, and deploy (so you have something to roll back FROM)
+```
+# In Designer, make a small change to the Interface, re-export via the API
+# (same Export steps), save as packages/ticket-app-v2.zip, import to target.
+git add packages/ticket-app-v2.zip && git commit -m "ticket-app v2" && git tag ticket-app-v2
+```
+
+Roll back by redeploying the previous version from AVM
+```
+# Rollback in Appian = re-import the PREVIOUS package version. Pull it from Git.
+cd ~/devops-july-2026/Day4/appian-xenv
+git checkout ticket-app-v1 -- packages/ticket-app-v1.zip
+
+# inspect the old version against the target first
+curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/inspections" \
+  -H "appian-api-key: $TGT_API_KEY" \
+  -F 'zipFile=@packages/ticket-app-v1.zip'
+# then re-import v1 to revert the target
+curl -s -X POST "$TGT_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $TGT_API_KEY" -H "Action-Type: import" \
+  -F 'json={ "name": "rollback-to-v1" };type=application/json' \
+  -F 'zipFile=@packages/ticket-app-v1.zip'
+# read the log to confirm the revert
+```
+
+Verify the whole flow
+```
+# 1. GET /deployments lists export, import(v1), import(v2), rollback(v1).
+curl -s "$TGT_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $TGT_API_KEY"
+# 2. In Designer, the interface shows v1 content again after rollback.
+# 3. Git tags ticket-app-v1 and ticket-app-v2 both hold their .zip artifacts.
+# 4. Jenkins shows a green run through Export -> Inspect -> Import -> Archive.
+```
