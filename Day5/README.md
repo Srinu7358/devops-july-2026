@@ -498,11 +498,11 @@ Protect app1 with oauth2-proxy, restricted to the developers group ( need to pas
 docker run -d --name proxy-app1 --network ssolab -p 4180:4180 \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
-  --oidc-issuer-url=http://keycloak:8080/realms/tektutor \
+  --oidc-issuer-url=http://localhost:8080/realms/tektutor \
   --client-id=app1 \
   --client-secret='QuQ5906LYUyNwtyhB6mZ342Yj7EEpztM' \
   --redirect-url=http://localhost:4180/oauth2/callback \
-  --upstream=http://app1:80 \
+  --upstream=http://localhost:9001 \
   --http-address=0.0.0.0:4180 \
   --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
   --cookie-secure=false \
@@ -517,11 +517,11 @@ Protect app2 the same way on 4181, need to paste app2 secret
 docker run -d --name proxy-app2 --network ssolab -p 4181:4181 \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
-  --oidc-issuer-url=http://keycloak:8080/realms/tektutor \
+  --oidc-issuer-url=http://localhost:8080/realms/tektutor \
   --client-id=app2 \
   --client-secret='cWZ1dE3x8uUGwkAzxYWoyokBhNnjY5Kj' \
   --redirect-url=http://localhost:4181/oauth2/callback \
-  --upstream=http://app2:80 \
+  --upstream=http://localhost:9002 \
   --http-address=0.0.0.0:4181 \
   --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
   --cookie-secure=false \
