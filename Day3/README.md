@@ -331,6 +331,10 @@ sudo ss -ltnp | grep -E ':(8080|9090|8005|9095)' && echo CLASH || echo "ports fr
 
 Install systemd units (home already set to /opt/tomcat11)
 ```
+cd ~/devops-july-2026
+git pull
+cd Day3/pluginconf-srv
+
 sudo cp systemd/tomcat-webgw.service /etc/systemd/system/
 sudo cp systemd/tomcat-appsvc.service /etc/systemd/system/
 sudo systemctl daemon-reload
