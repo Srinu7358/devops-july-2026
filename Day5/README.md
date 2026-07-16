@@ -378,7 +378,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   -s 'config.priority=["0"]' \
   -s 'config.editMode=["READ_ONLY"]' \
   -s 'config.vendor=["other"]' \
-  -s 'config.connectionUrl=["ldap://openldap:389"]' \
+  -s 'config.connectionUrl=["ldap://192.168.1.104:389"]' \
   -s 'config.usersDn=["ou=people,dc=tektutor,dc=org"]' \
   -s 'config.bindDn=["cn=admin,dc=tektutor,dc=org"]' \
   -s 'config.bindCredential=["Admin@123"]' \
