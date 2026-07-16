@@ -108,7 +108,7 @@ oc describe svc/nginx
 
 Let's create an external to make the nginx accessible for outside world
 ```
-oc expose svc/gninx
+oc expose svc/nginx
 ```
 
 List the routes
