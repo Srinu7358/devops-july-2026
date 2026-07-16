@@ -193,17 +193,19 @@ oc describe buildconfig/hello
     - Same delegation idea, different envelope (XML assertions instead of JWTs).
 </pre>
 
-## Lab - Setup OpenLDAP and load users
+# Lab - Setup OpenLDAP and load users
 
-Pre-flight (Docker present, port and name free)
-```
+#### Pre-flight (Docker present, port and name free)
+
+```bash
 docker --version
 docker rm -f openldap 2>/dev/null
 sudo ss -ltnp | grep -E ':(389|636)\b' && echo "PORT IN USE" || echo "ports free"
 ```
 
-Run OpenLDAP and create the organization
-```
+#### Run OpenLDAP and create the organization
+
+```bash
 # LDAP_ORGANISATION + LDAP_DOMAIN seed the base org and base DN.
 # base DN derived from the domain: tektutor.org -> dc=tektutor,dc=org
 docker run -d --name openldap \
@@ -212,13 +214,13 @@ docker run -d --name openldap \
   -e LDAP_DOMAIN="tektutor.org" \
   -e LDAP_ADMIN_PASSWORD="Admin@123" \
   osixia/openldap:1.5.0
-
 sleep 5
 docker ps --filter name=openldap
 ```
 
-Confirm the base tree exists
-```
+#### Confirm the base tree exists
+
+```bash
 # admin bind DN is cn=admin,<baseDN>
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "cn=admin,dc=tektutor,dc=org" -w "Admin@123" \
@@ -226,8 +228,9 @@ docker exec openldap ldapsearch -x -H ldap://localhost \
 # should return the dc=tektutor,dc=org entry (objectClass organization/dcObject)
 ```
 
-Write the LDIF: organizational units, groups, and users
-```
+#### Write the LDIF: organizational units, groups, and users
+
+```bash
 cat > /tmp/tektutor.ldif <<'EOF'
 # --- organizational units (containers) ---
 dn: ou=people,dc=tektutor,dc=org
@@ -278,8 +281,9 @@ EOF
 cat /tmp/tektutor.ldif
 ```
 
-Load the LDIF
-```
+#### Load the LDIF
+
+```bash
 # copy into the container and add it as the admin user
 docker cp /tmp/tektutor.ldif openldap:/tmp/tektutor.ldif
 docker exec openldap ldapadd -x -H ldap://localhost \
@@ -288,31 +292,35 @@ docker exec openldap ldapadd -x -H ldap://localhost \
 # expect: adding new entry ... for each dn
 ```
 
-Verify: all users resolve
-```
+#### Verify: all users resolve
+
+```bash
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "cn=admin,dc=tektutor,dc=org" -w "Admin@123" \
   -b "ou=people,dc=tektutor,dc=org" "(objectClass=inetOrgPerson)" uid cn mail
 # expect three entries: jegan, sriram, asha
 ```
 
-Verify: a specific user by uid
-```
+#### Verify: a specific user by uid
+
+```bash
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "cn=admin,dc=tektutor,dc=org" -w "Admin@123" \
   -b "ou=people,dc=tektutor,dc=org" "(uid=jegan)"
 ```
 
-Verify: groups and their members resolve
-```
+#### Verify: groups and their members resolve
+
+```bash
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "cn=admin,dc=tektutor,dc=org" -w "Admin@123" \
   -b "ou=groups,dc=tektutor,dc=org" "(objectClass=groupOfNames)" cn member
 # developers -> jegan, sriram ; admins -> jegan
 ```
 
-Verify: which groups a user belongs to (reverse lookup)
-```
+#### Verify: which groups a user belongs to (reverse lookup)
+
+```bash
 # find every group whose member is jegan's DN
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "cn=admin,dc=tektutor,dc=org" -w "Admin@123" \
@@ -321,8 +329,9 @@ docker exec openldap ldapsearch -x -H ldap://localhost \
 # expect: developers and admins
 ```
 
-Verify: a user can bind with their own password (real auth check)
-```
+#### Verify: a user can bind with their own password (real auth check)
+
+```bash
 # bind AS the user, not as admin. Success proves the password works.
 docker exec openldap ldapsearch -x -H ldap://localhost \
   -D "uid=sriram,ou=people,dc=tektutor,dc=org" -w "Passw0rd!" \
@@ -330,10 +339,11 @@ docker exec openldap ldapsearch -x -H ldap://localhost \
 # a returned entry = bind succeeded = credentials valid
 ```
 
-## Lab - Configure Keycloak for SSO and policy
+# Lab - Configure Keycloak for SSO and policy
 
-Pre-flight (OpenLDAP from the previous lab must be running)
-```
+#### Pre-flight (OpenLDAP from the previous lab must be running)
+
+```bash
 docker ps --filter name=openldap        # must be Up; if not, redo the LDAP lab
 docker --version
 docker network ls | grep ssolab || docker network create ssolab
@@ -342,34 +352,43 @@ docker network connect ssolab openldap 2>/dev/null || true
 sudo ss -ltnp | grep -E ':(8080|4180|4181|9001|9002)\b' && echo "PORT IN USE" || echo "ports free"
 ```
 
-Run Keycloak (dev mode is fine for a lab)
-```
+#### Run Keycloak (dev mode is fine for a lab)
+
+```bash
+# Keycloak 26 uses KC_BOOTSTRAP_ADMIN_* for the first admin.
+# The old KEYCLOAK_ADMIN_* names are deprecated and may be ignored.
 docker rm -f keycloak 2>/dev/null
 docker run -d --name keycloak --network ssolab \
   -p 8080:8080 \
-  -e KEYCLOAK_ADMIN=admin \
-  -e KEYCLOAK_ADMIN_PASSWORD='Admin@123' \
+  -e KC_BOOTSTRAP_ADMIN_USERNAME=admin \
+  -e KC_BOOTSTRAP_ADMIN_PASSWORD='Admin@123' \
   quay.io/keycloak/keycloak:26.0 start-dev
 sleep 20
+# confirm the bootstrap admin was created before using kcadm
+docker logs keycloak 2>&1 | grep -i "admin user" | head -1
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/   # expect 200/302
 ```
 
-Log in with kcadm (the admin CLI inside the container)
-```
+#### Log in with kcadm (the admin CLI inside the container)
+
+```bash
 docker exec keycloak /opt/keycloak/bin/kcadm.sh config credentials \
   --server http://localhost:8080 --realm master \
   --user admin --password 'Admin@123'
 ```
 
-Create the realm
-```
+#### Create the realm
+
+```bash
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create realms \
   -s realm=tektutor -s enabled=true
 ```
 
-Federate the realm to OpenLDAP as the user store
-```
-# connection URL uses the container name on the shared network
+#### Federate the realm to OpenLDAP as the user store
+
+```bash
+# connection URL uses the container name on the shared network,
+# NOT a hardcoded bridge IP. Both containers are on ssolab.
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   components -r tektutor \
   -s name=openldap \
@@ -378,7 +397,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   -s 'config.priority=["0"]' \
   -s 'config.editMode=["READ_ONLY"]' \
   -s 'config.vendor=["other"]' \
-  -s 'config.connectionUrl=["ldap://172.17.0.2:389"]' \
+  -s 'config.connectionUrl=["ldap://openldap:389"]' \
   -s 'config.usersDn=["ou=people,dc=tektutor,dc=org"]' \
   -s 'config.bindDn=["cn=admin,dc=tektutor,dc=org"]' \
   -s 'config.bindCredential=["Admin@123"]' \
@@ -390,8 +409,9 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
 # note the returned component id if you want to reference it later
 ```
 
-Add a group mapper so LDAP groups become Keycloak groups
-```
+#### Add a group mapper so LDAP groups become Keycloak groups
+
+```bash
 # find the ldap component id
 LDAP_ID=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get components -r tektutor \
   --query name=openldap --fields id --format csv --noquotes | tail -1)
@@ -411,22 +431,26 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create components -r tektutor \
   -s 'config."user.roles.retrieve.strategy"=["LOAD_GROUPS_BY_MEMBER_ATTRIBUTE"]'
 ```
 
-Sync users and groups from OpenLDAP
-```
+#### Sync users and groups from OpenLDAP
+
+```bash
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   "user-storage/$LDAP_ID/sync?action=triggerFullSync" -r tektutor
+
 # verify users federated in
 docker exec keycloak /opt/keycloak/bin/kcadm.sh get users -r tektutor \
   --fields username,email
 # expect jegan, sriram, asha
+
 # verify groups federated in
 docker exec keycloak /opt/keycloak/bin/kcadm.sh get groups -r tektutor \
   --fields name
 # expect developers, admins
 ```
 
-Register application 1 as an OIDC client (app1, will run behind proxy on 4180)
-```
+#### Register application 1 as an OIDC client (app1, proxy on 4180)
+
+```bash
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s clientId=app1 \
   -s enabled=true \
@@ -435,6 +459,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s standardFlowEnabled=true \
   -s 'redirectUris=["http://localhost:4180/oauth2/callback"]' \
   -s 'webOrigins=["http://localhost:4180"]'
+
 # capture app1 client secret
 A1=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
   --query clientId=app1 --fields id --format csv --noquotes | tail -1)
@@ -442,8 +467,9 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A1/client-secret" 
 # note the "value" -> this is APP1_CLIENT_SECRET
 ```
 
-Register application 2 as an OIDC client (app2, proxy on 4181)
-```
+#### Register application 2 as an OIDC client (app2, proxy on 4181)
+
+```bash
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s clientId=app2 \
   -s enabled=true \
@@ -452,15 +478,19 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s standardFlowEnabled=true \
   -s 'redirectUris=["http://localhost:4181/oauth2/callback"]' \
   -s 'webOrigins=["http://localhost:4181"]'
+
 A2=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
   --query clientId=app2 --fields id --format csv --noquotes | tail -1)
 docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A2/client-secret" -r tektutor
 # note APP2_CLIENT_SECRET
 ```
 
-Add a groups claim to the token so the proxy can enforce policy
-```
+#### Add a groups claim to the token so the proxy can enforce policy
+
+```bash
 # add a group-membership mapper on each client so the ID token carries "groups"
+# full.path=false makes the claim value "developers" (not "/developers"),
+# which is what --allowed-group=developers expects. Keep these paired.
 for CID in $A1 $A2; do
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   "clients/$CID/protocol-mappers/models" -r tektutor \
@@ -475,8 +505,9 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
 done
 ```
 
-Define the policy: allow only the "developers" group
-```
+#### Define the policy: allow only the "developers" group
+
+```bash
 # There are two valid ways to enforce "only developers":
 #   (a) at the proxy  -> oauth2-proxy checks the groups claim (used below)
 #   (b) in Keycloak   -> client authorization policy on a group
@@ -485,17 +516,27 @@ Define the policy: allow only the "developers" group
 echo "policy = oauth2-proxy allowed_groups=developers (enforced at the proxy)"
 ```
 
-Run two tiny backend apps to protect (plain hello servers)
-```
+#### Run two tiny backend apps to protect (plain hello servers)
+
+```bash
+# http-echo listens on :5678 by default. We force it to :80 so the
+# published port mapping and the proxy upstream port agree.
 docker run -d --name app1 --network ssolab -p 9001:80 \
-  hashicorp/http-echo -text="APP1 backend: you are in"
+  hashicorp/http-echo -listen=:80 -text="APP1 backend: you are in"
 docker run -d --name app2 --network ssolab -p 9002:80 \
-  hashicorp/http-echo -text="APP2 backend: you are in"
+  hashicorp/http-echo -listen=:80 -text="APP2 backend: you are in"
 ```
 
-Protect app1 with oauth2-proxy, restricted to the developers group ( need to paste app1 secret )
-```
-docker run -d --name proxy-app1 --network ssolab -p 4180:4180 \
+#### Protect app1 with oauth2-proxy, restricted to the developers group (paste app1 secret)
+
+```bash
+# --network host is the key change. With host networking, one set of
+# localhost URLs is correct for the browser, the proxy, Keycloak (8080),
+# and the upstream (9001) all at once. The token issuer "iss" then matches
+# --oidc-issuer-url exactly, which oauth2-proxy validates strictly.
+# Drop --network ssolab and -p 4180:4180 when using host networking.
+# (Linux Docker host only; host networking does not work on Docker Desktop.)
+docker run -d --name proxy-app1 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
   --oidc-issuer-url=http://localhost:8080/realms/tektutor \
@@ -512,9 +553,10 @@ docker run -d --name proxy-app1 --network ssolab -p 4180:4180 \
   --oidc-groups-claim=groups
 ```
 
-Protect app2 the same way on 4181, need to paste app2 secret
-```
-docker run -d --name proxy-app2 --network ssolab -p 4181:4181 \
+#### Protect app2 the same way on 4181 (paste app2 secret)
+
+```bash
+docker run -d --name proxy-app2 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
   --oidc-issuer-url=http://localhost:8080/realms/tektutor \
@@ -531,8 +573,9 @@ docker run -d --name proxy-app2 --network ssolab -p 4181:4181 \
   --oidc-groups-claim=groups
 ```
 
-Test: a developer gets in, SSO carries to the second app
-```
+#### Test: a developer gets in, SSO carries to the second app
+
+```bash
 # In a browser (these flows need cookies/redirects, curl won't complete login):
 #  1. open http://localhost:4180  -> redirected to Keycloak login
 #  2. log in as  sriram / Passw0rd!   (member of developers)
@@ -540,8 +583,9 @@ Test: a developer gets in, SSO carries to the second app
 #  4. open http://localhost:4181  -> NO second login (SSO session), APP2 shows
 ```
 
-Test: a non-developer is denied by the policy
-```
+#### Test: a non-developer is denied by the policy
+
+```bash
 # asha is NOT in the developers group.
 #  1. open a fresh/incognito browser -> http://localhost:4180
 #  2. log in as  asha / Passw0rd!
@@ -549,11 +593,12 @@ Test: a non-developer is denied by the policy
 #     groups claim and returns 403 -> access denied at the proxy
 ```
 
-Verify the token actually carries the group (troubleshooting aid)
-```
-# confirm the issuer/discovery is reachable from the proxy's network
-docker exec proxy-app1 wget -qO- \
-  http://keycloak:8080/realms/tektutor/.well-known/openid-configuration | head -c 300
+#### Verify the token actually carries the group (troubleshooting aid)
+
+```bash
+# with host networking the proxy reaches Keycloak on localhost too
+curl -s http://localhost:8080/realms/tektutor/.well-known/openid-configuration \
+  | head -c 300
 # proxy logs show the allow/deny decision
 docker logs --tail 20 proxy-app1
 ```
