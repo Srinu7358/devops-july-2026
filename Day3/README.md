@@ -773,3 +773,174 @@ sudo exportfs -ra
 findmnt -t nfs || echo "no nfs mounts left"
 ```
 
+## Lab6 - Deploying applications into Appian (CD) 
+
+Understand what "install" means here (read first, nothing to run)
+```
+# Appian Community Edition is a HOSTED cloud site, not a local install.
+# There is no apt-get / installer / container you self-host on tektutor.
+# You REQUEST a site and Appian provisions it at https://<yoursite>.appiancloud.com
+#
+# Keep it alive: log in at least once every 5 days or the site is shut down
+# (a backup is kept for 28 days, after which the data is deleted).
+```
+
+Request your Appian Community Edition site
+```
+# 1. Create an Appian Community account:      https://community.appian.com
+#    Verify email, set up MFA.
+# 2. From "My Learning Journey", request your Community Edition environment.
+# 3. Wait for the activation email, then log in to your site URL:
+#      https://<yoursite>.appiancloud.com/suite/
+# 4. Record your site domain; you will use it in every API call below.
+export APPIAN_HOST="https://<yoursite>.appiancloud.com"
+```
+
+Enable the deployment APIs and create a service account + API key (in the site UI)
+```
+# In the Appian site, open the Admin Console (gear menu) and:
+#   Infrastructure  -> enable the Deployment REST APIs (incoming + outgoing)
+#   API Keys        -> create a service account and generate an API key
+# Copy the key value once; you cannot see it again.
+export APPIAN_API_KEY="<paste-the-api-key>"
+```
+
+Build the application to deploy (in the site UI)
+```
+# In Appian Designer:
+#   Create a new Application (this is the container of design objects).
+#   Add at least one object (e.g. an Interface or a Constant) so the package
+#   has content to move.
+#   Create a Package inside the application and add your object(s) to it.
+# An Appian deployment moves a PACKAGE between environments.
+```
+
+Manual path first: Compare and Deploy (do this once to see the model)
+```
+# In Appian Designer, open the application -> Deploy -> Compare and Deploy
+# (or Export) to move the package to a target environment or export a .zip.
+# This is the human/manual equivalent of the API workflow below.
+# Community Edition is a single site, so "target" may be the same site or an
+# exported package file used to seed Git (next section).
+```
+
+Confirm the API is reachable (GET works regardless of Admin Console toggles)
+```
+# List deployments. GET endpoints are always available once the key exists.
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $APPIAN_API_KEY" | head
+```
+
+Get the package UUID you will deploy (Application Package Details)
+```
+# In Appian Designer, open the package and copy its UUID from the URL / details
+# panel, OR use the Application Package Details view. Save it:
+export PKG_UUID="<package-uuid>"
+```
+
+Automated path - Step 1: EXPORT the package
+```
+# Action-Type header selects export. Body identifies the package(s) by UUID.
+# NOTE: the exact JSON schema varies by Appian version; confirm against
+#   $APPIAN_HOST docs before relying on this in a pipeline.
+curl -s -X POST "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $APPIAN_API_KEY" \
+  -H "Action-Type: export" \
+  -F 'json={
+        "name": "export-from-cli",
+        "packageUuids": ["'"$PKG_UUID"'"]
+      };type=application/json'
+# The response returns a deployment UUID. Save it:
+export DEP_UUID="<deployment-uuid-from-response>"
+```
+
+Automated path - Step 2: check EXPORT results and download resources
+```
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments/$DEP_UUID" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# When status is COMPLETED, the response links the exported package .zip and
+# any DB scripts / plug-ins / import-customization files as resources.
+```
+
+Automated path - Step 3: INSPECT the package before importing
+```
+# Upload the exported package .zip to /inspections; inspecting first is the
+# Appian-recommended safety step before any import.
+curl -s -X POST "$APPIAN_HOST/suite/deployment-management/v2/inspections" \
+  -H "appian-api-key: $APPIAN_API_KEY" \
+  -F 'zipFile=@/path/to/exported-package.zip'
+export INSPECT_UUID="<inspection-uuid-from-response>"
+```
+
+Automated path - Step 4: get INSPECT results
+```
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/inspections/$INSPECT_UUID" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# Confirm there are no blocking problems before you import.
+```
+
+Automated path - Step 5: IMPORT the package
+```
+curl -s -X POST "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $APPIAN_API_KEY" \
+  -H "Action-Type: import" \
+  -F 'json={ "name": "import-from-cli" };type=application/json' \
+  -F 'zipFile=@/path/to/exported-package.zip'
+export IMPORT_UUID="<deployment-uuid-from-response>"
+```
+
+Automated path - Step 6: get deployment RESULTS
+```
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments/$IMPORT_UUID" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# Poll until status is COMPLETED or FAILED.
+```
+
+Automated path - Step 7: get the deployment LOG
+```
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments/$IMPORT_UUID/log" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# Detailed per-object results for troubleshooting.
+```
+
+Automated Version Manager: store package files in Git
+```
+# Set up a Git repo that the pipeline exports into and imports from.
+mkdir -p ~/devops-july-2026/Day4/appian-avm && cd $_
+git init
+mkdir -p packages
+# After each export (Step 2), commit the .zip so Git is the source of truth:
+# cp /path/to/exported-package.zip packages/
+# git add packages/ && git commit -m "export: <package name> <increment>"
+#
+# Appian's Automated Version Manager (AVM) automates this: it versions the
+# exported package files into Git so deployments are reproducible from source.
+```
+
+Configure the post-deployment process (in the site UI)
+```
+# Admin Console -> configure a post-deployment process to run automatically
+# after an EXTERNAL (API) deployment finishes. Build a Process Model in the
+# site, then select it as the post-deployment process. It runs on its own
+# after Step 5 import completes (e.g. smoke checks, notifications, cache warmup).
+```
+
+Model the Jenkins pipeline from Appian's devops-quickstart
+```
+# Appian publishes a reference pipeline. Clone and read it, then adapt the
+# stages to the curl calls above (export -> inspect -> import -> results -> log).
+git clone https://github.com/appian/devops-quickstart.git \
+  ~/devops-july-2026/Day4/devops-quickstart
+cd ~/devops-july-2026/Day4/devops-quickstart
+ls   # review the Jenkinsfile and scripts; map each stage to a v2 endpoint
+```
+
+Verify the whole flow
+```
+# 1. GET /deployments lists your export and import deployments.
+curl -s "$APPIAN_HOST/suite/deployment-management/v2/deployments" \
+  -H "appian-api-key: $APPIAN_API_KEY"
+# 2. The imported objects appear in the target application in Appian Designer.
+# 3. The post-deployment process shows an execution in the site's monitoring.
+# 4. Git has the committed package .zip for the increment.
+```
