@@ -139,9 +139,35 @@ sleep 2
 curl -s http://127.0.0.1:9092/admin/publish
 ```
 
-Enable on boot
+Teardown to avoid conflicts on your next lab exercises
 ```
-sudo systemctl enable tomcat-webtier tomcat-apptier
+# Stop and disable the services
+sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
+sudo systemctl disable tomcat-webtier tomcat-apptier 2>/dev/null
+
+# Kill any leftover JVMs
+sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
+sleep 2
+sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "all ports free"
+
+# Remove the systemd unit files
+sudo rm -f /etc/systemd/system/tomcat-webtier.service
+sudo rm -f /etc/systemd/system/tomcat-apptier.service
+sudo systemctl daemon-reload
+sudo systemctl reset-failed tomcat-webtier tomcat-apptier 2>/dev/null
+
+# Remove the instance directories
+sudo rm -rf /srv/webtier /srv/apptier
+sudo a2disconf pushgate 2>/dev/null
+
+# Remove the Apache proxy config (only if you added it)
+sudo rm -f /etc/apache2/conf-available/pushgate.conf
+sudo systemctl reload apache2 2>/dev/null || true
+
+# Verify nothing is left
+systemctl list-units --all 'tomcat-webtier*' 'tomcat-apptier*' --no-pager
+sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clean"
+ls -d /srv/webtier /srv/apptier 2>/dev/null || echo "instances removed"
 ```
 
 ## Info - Configuration Management Tool
