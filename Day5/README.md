@@ -123,13 +123,29 @@ curl http://nginx-jegan.apps-crc.testing
 ```
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/d82c3cda-2fd5-4bac-9de4-3e9263c7ff97" />
 
+Rolling update to upgrade your application from 1.0 to 2.0
+```
+oc get pods -o json | grep image
+
+oc set image deploy/hello nginx=docker.io/tektutor/nginx:2.0
+
+oc rollout status deploy/hello
+oc rollout history deploy/hello
+
+oc get pods
+oc get pods -o json | grep image
+```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f6ece236-c31c-4fff-8179-db9c5e70f075" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e9f40916-3e81-4743-ba86-38a622374d96" />
+
 
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
 - OpenLDAP is where identities live
 - Keycloak is what applications talk to for login
 - Keycloak federates (reads) users from OpenLDAP and then speaks modern SSO protocols 
-  to your apps, so your apps never touch LDAP directly and never see passwords
+  to your apps, so your apps never touch L2.0DAP directly and never see passwords
 - What SSO actually means here?
   - Single Sign-On means a user authenticates once and then reaches many applications 
     without logging in again
