@@ -162,8 +162,8 @@ git pull
 cd Day3/pluginconf-srv
 
 sed -i 's#/opt/tomcat\b#/opt/tomcat11#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
-sudo cp systemd/tomcat-webtier.service /etc/systemd/system/
-sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
+sudo cp systemd/tomcat-webgw.service /etc/systemd/system/
+sudo cp systemd/tomcat-appsvc.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
@@ -195,9 +195,9 @@ sudo chown $TC_USER:$TC_USER /srv/apptier/webapps/ROOT.war
 
 Start (web tier first)
 ```
-sudo systemctl start tomcat-webtier; sleep 5
-sudo systemctl start tomcat-apptier; sleep 5
-systemctl is-active tomcat-webtier tomcat-apptier          # both must say active
+sudo systemctl start tomcat-webgw; sleep 5
+sudo systemctl start tomcat-appsvc; sleep 5
+systemctl is-active tomcat-webgw tomcat-appsvc          # both must say active
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)'           # all four must listen
 ```
 
@@ -248,8 +248,8 @@ curl -s http://127.0.0.1:9092/admin/publish
 Teardown to avoid conflicts on your next lab exercises
 ```
 # Stop and disable the services
-sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
-sudo systemctl disable tomcat-webtier tomcat-apptier 2>/dev/null
+sudo systemctl stop tomcat-webgw tomcat-appsvc 2>/dev/null
+sudo systemctl disable tomcat-webgw tomcat-appsvc 2>/dev/null
 
 # Kill any leftover JVMs
 sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
@@ -257,10 +257,10 @@ sleep 2
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "all ports free"
 
 # Remove the systemd unit files
-sudo rm -f /etc/systemd/system/tomcat-webtier.service
-sudo rm -f /etc/systemd/system/tomcat-apptier.service
+sudo rm -f /etc/systemd/system/tomcat-webgw.service
+sudo rm -f /etc/systemd/system/tomcat-appsvc.service
 sudo systemctl daemon-reload
-sudo systemctl reset-failed tomcat-webtier tomcat-apptier 2>/dev/null
+sudo systemctl reset-failed tomcat-webgw tomcat-appsvc 2>/dev/null
 
 # Remove the instance directories
 sudo rm -rf /srv/webtier /srv/apptier
