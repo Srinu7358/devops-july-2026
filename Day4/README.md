@@ -2,6 +2,14 @@
 
 ## Lab - App Server push plugin to restrict access to the Web server
 
+Pre-flight cleanup (clear stale instances from a previous run)
+```
+sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
+sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
+sleep 2
+sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clear to start"
+```
+
 Read your Tomcat paths
 ```
 systemctl cat tomcat-node1 | grep -E "CATALINA_HOME|JAVA_HOME|User"
@@ -9,7 +17,7 @@ export CATALINA_HOME=/opt/tomcat11
 export TC_USER=tomcat
 ```
 
-Create instances
+Create webtier and apptier tomcat instances
 ```
 for inst in webtier apptier; do
   sudo mkdir -p /srv/$inst/{conf,logs,temp,webapps,work,bin}
@@ -53,7 +61,7 @@ sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
-Build
+Build your application 
 ```
 cd web-tier && mvn -q clean package && cd ..
 cd app-tier && mvn -q clean package && cd ..
@@ -83,15 +91,14 @@ Start (web tier first)
 ```
 sudo systemctl start tomcat-webtier; sleep 5
 sudo systemctl start tomcat-apptier; sleep 5
-
 systemctl is-active tomcat-webtier tomcat-apptier          # both must say active
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)'           # all four must listen
 ```
 
 Confirm push
 ```
-sudo grep -i "push plugin" /srv/apptier/logs/catalina.$(date +%F).log
-curl -s http://127.0.0.1:9091/admin/allowlist
+sudo grep -i "push plugin" /srv/apptier/logs/*.$(date +%F).log
+curl -s http://127.0.0.1:9091/admin/allowlist              # real proof: prints the two paths
 ```
 
 Push manually if empty
@@ -111,7 +118,7 @@ curl -si http://127.0.0.1:9092/api/internal/metrics | head -1
 curl -si http://127.0.0.1:9091/api/internal/metrics | head -1
 ```
 
-One-shot check
+One shot test
 ```
 ./scripts/verify.sh
 ```
@@ -135,15 +142,7 @@ curl -s http://127.0.0.1:9092/admin/publish
 Enable on boot
 ```
 sudo systemctl enable tomcat-webtier tomcat-apptier
-sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
-sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
-sleep 2
-sudo ss -ltnp | grep -E ':(9091|9092)' || echo "clear to start"
 ```
-
-
-
-
 
 ## Info - Configuration Management Tool
 <pre>
