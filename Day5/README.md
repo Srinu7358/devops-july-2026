@@ -525,3 +525,115 @@ Full SiteMinder mapping table, for your notes
 # authentication (LDAP bind)     ->  AuthN scheme (LDAP)
 # group/policy check -> 403      ->  AuthZ rule denial on a protected resource
 ```
+
+## Info - MCP Overview
+<pre>
+- MCP is a standard way to plug external tools and data into an AI assistant, 
+  so the model can do things and read things beyond its training, through a uniform 
+  interface instead of a bespoke integration per tool
+- The problem it solves
+  - Before MCP, every "give the AI access to X" was a custom integration
+  - one glue layer for your database, another for GitHub, another for your filesystem, 
+    each with its own auth, schema, and calling convention. 
+  - N tools times M AI applications means N×M integrations
+  - MCP makes it N+M
+    - a tool author writes one MCP server, and any MCP-capable client can use it
+    - It's deliberately analogous to what a common driver interface or a protocol like 
+      LSP (Language Server Protocol) did, standardize the connector so the two sides stop 
+      needing custom wiring
+- The two roles
+  - MCP server 
+    - exposes capabilities
+    - it wraps some external system, a database, an API, a filesystem, a ticketing system, 
+      and presents it through the MCP interface
+    - a server is usually small and single-purpose ("the GitHub server", "the Postgres server")
+  - MCP client lives inside the AI application (the assistant, the IDE plugin, the agent runtime)
+  - it connects to one or more servers, discovers what they offer, and lets the model invoke them
+  - the client is the model's hands and eyes, the server is the thing being touched
+
+- the AI model itself never speaks MCP directly
+- the client mediates
+  - it presents the server's capabilities to the model, and when the model decides to use one, 
+    the client makes the actual MCP call and feeds the result back
+- The three things a server exposes
+  - Tools
+    - actions the model can invoke, functions with side effects or computation
+    - Create a GitHub issue
+    - run this SQL query
+    - send an email
+  - Resources
+    - data the model can read, addressed by URI
+    - A file's contents
+    - a database record
+    - a document
+  - Prompts
+    - reusable, parameterized prompt templates the server offers
+    - summarize this PR
+    - review this code for security issues
+</pre>
+
+## Lab - Build and call an MCP server
+
+Install the MCP SDK
+```
+pip install mcp --break-system-packages
+python3 -c "import mcp.server.fastmcp as f; print('FastMCP:', hasattr(f,'FastMCP'))"
+# if pip complains about a debian-managed package (e.g. PyJWT), add:
+#   pip install mcp --break-system-packages --ignore-installed PyJWT
+```
+
+Get the lab files
+```
+mkdir -p ~/devops-july-2026/Day5 && cd ~/devops-july-2026/Day5
+# unzip the provided mcp-jenkins.zip here, or recreate server.py from the repo
+cd mcp-jenkins
+ls        # server.py  client_test.py  README.md
+```
+
+Run the client, which spawns the server over stdio and calls the tools
+```
+python3 client_test.py
+# expect: tools discovered (get_build_status, list_deployments),
+#         then JSON responses. source = MOCK until you point at Jenkins.
+```
+
+Point at a live Jenkins (read-only API token)
+```
+# Jenkins UI: click your name > Configure > API Token > Add new token
+export JENKINS_URL=http://localhost:8080
+export JENKINS_USER=jegan
+export JENKINS_TOKEN=<paste-api-token>
+python3 client_test.py         # source flips from MOCK to jenkins
+```
+
+Inspect the actual protocol calls
+```
+# the server logs each JSON-RPC request to stderr; run and watch:
+python3 client_test.py 2>server-protocol.log
+cat server-protocol.log
+# you'll see: ListToolsRequest, then CallToolRequest per tool call.
+# that is the client discovering the menu, then invoking a tool.
+```
+
+Ask a question that forces a tool call (in a real AI client)
+```
+# Wire the server into an AI MCP client (config in README.md), then ask:
+#   "Did the last build of web-tier-build pass?"   -> forces get_build_status
+#   "What are the last deployments to prod?"        -> forces list_deployments
+# The model cannot answer from training data (it's live CI state), so it must
+# call the tool. The client shows the tool name + arguments before running it.
+```
+
+Confirm read-only by design
+```
+# the server only issues HTTP GET to Jenkins. Prove it:
+grep -n "method=" server.py           # method="GET" only
+grep -ni "deploy\|build/.*/build\|POST" server.py | grep -i tool || echo "no write/deploy tool exposed"
+```
+
+Teardown
+```
+unset JENKINS_URL JENKINS_USER JENKINS_TOKEN
+# nothing installed system-wide except the pip package; remove if you want:
+# pip uninstall mcp --break-system-packages
+```
