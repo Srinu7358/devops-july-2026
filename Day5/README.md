@@ -139,6 +139,25 @@ oc get pods -o json | grep image
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/f6ece236-c31c-4fff-8179-db9c5e70f075" />
 <img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/e9f40916-3e81-4743-ba86-38a622374d96" />
 
+## Lab - Source to Image (S2I) Docker Strategy - deploy application into openshift using GitHub source code
+```
+oc delete project jegan
+oc new-project jegan
+oc new-app --name=hello https://github.com/tektutor/spring-ms.git --strategy=docker
+oc expose svc/hello
+
+oc logs -f buildconfig/hello
+
+oc get imagestreams
+oc get buildconfigs
+oc describe buildconfig/hello
+```
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/4fcded39-e42d-4619-8795-bb684c043a6f" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/31fc7259-2cf7-41a1-993b-0f8ad6717099" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/483f817c-2da5-4515-8da1-45533e1e6498" />
+
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/b085c39e-4c53-4f95-9002-6a6af386414f" />
 
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
