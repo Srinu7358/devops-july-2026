@@ -36,6 +36,58 @@
     - ImageStream ( Custom Image with your application and its dependencies )
 </pre>
 
+## Demo - Red Hat Openshift
+Starting Code Ready Container ( Single Node Openshift Cluster )
+```
+crc start
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ae271c73-6563-45f7-aeab-52330395efb4" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/76e301ae-a8a5-439b-98fc-f929b3cce2ce" />
+
+Listing the nodes in the Openshift cluster
+```
+oc get nodes
+```
+
+Creating a new project to deploy our application into it
+```
+oc new-project jegan
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/12d319dd-fe41-49e3-b06a-6cb6d6ce4fc9" />
+
+Deploy our first application into openshift cluster
+```
+oc create deploy nginx --image=docker.io/bitnami/nginx:latest --replicas=3
+```
+
+Listing all deployments
+```
+oc get deployments
+oc get deployment
+oc get deploy
+```
+
+Listing all replicasets
+```
+oc get replicasets
+oc get replicaset
+oc get rs
+```
+
+Listing all pods
+```
+oc get pods
+oc get pod
+oc get po
+```
+
+Finding the IP addresses of Pods
+```
+oc get pods -o wide
+```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/59629a73-79ee-4a68-817b-4ece438f9363" />
+
+
 ## Info - Single Sign-On with OpenLDAP and Keycloak Overview
 <pre>
 - OpenLDAP is where identities live
