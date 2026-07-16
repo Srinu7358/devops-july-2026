@@ -131,15 +131,6 @@ Enable on boot
 sudo systemctl enable tomcat-webtier tomcat-apptier
 ```
 
-Apache in front (optional)
-```
-echo 'ProxyPass        "/" "http://127.0.0.1:9091/"
-ProxyPassReverse "/" "http://127.0.0.1:9091/"' | sudo tee /etc/apache2/conf-available/pushgate.conf
-sudo a2enmod proxy proxy_http
-sudo a2enconf pushgate
-sudo systemctl reload apache2
-```
-
 
 
 
