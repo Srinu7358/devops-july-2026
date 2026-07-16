@@ -274,4 +274,148 @@ sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clean"
 ls -d /srv/webtier /srv/apptier 2>/dev/null || echo "instances removed"
 ```
 
+## Lab - Push-plugin access control with two Tomcat instances
+
+Pre-flight cleanup (clear stale instances from a previous run)
+```
+sudo systemctl stop tomcat-webgw tomcat-appsvc 2>/dev/null
+sudo pkill -f '/srv/webgw'; sudo pkill -f '/srv/appsvc'
+sleep 2
+sudo ss -ltnp | grep -E ':(8080|9090|8005|9095)' || echo "clear to start"
+```
+
+Read your Tomcat paths
+```
+systemctl cat tomcat-node1 | grep -E "CATALINA_HOME|JAVA_HOME|User"
+export CATALINA_HOME=/opt/tomcat11
+export TC_USER=tomcat
+```
+
+Create instances
+```
+for inst in webgw appsvc; do
+  sudo mkdir -p /srv/$inst/{conf,logs,temp,webapps,work,bin}
+  sudo cp -r $CATALINA_HOME/conf/* /srv/$inst/conf/
+done
+sudo chown -R $TC_USER:$TC_USER /srv/webgw /srv/appsvc
+```
+
+Configure Web-tier ports (8080 HTTP, 8005 shutdown)
+```
+sudo sed -i 's/port="8100"/port="8080"/' /srv/webgw/conf/server.xml
+sudo sed -i 's/<Server port="8007"/<Server port="8005"/' /srv/webgw/conf/server.xml
+sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/webgw/conf/server.xml
+grep -nE '<Server port=|<Connector port=' /srv/webgw/conf/server.xml
+```
+
+Configure App-tier ports (9090 HTTP, 9095 shutdown)
+```
+sudo sed -i 's/port="8100"/port="9090"/' /srv/appsvc/conf/server.xml
+sudo sed -i 's/<Server port="8007"/<Server port="9095"/' /srv/appsvc/conf/server.xml
+sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/appsvc/conf/server.xml
+grep -nE '<Server port=|<Connector port=' /srv/appsvc/conf/server.xml
+```
+
+Bind to loopback
+```
+sudo sed -i 's#<Connector port="8080" protocol="HTTP/1.1"#<Connector port="8080" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/webgw/conf/server.xml
+sudo sed -i 's#<Connector port="9090" protocol="HTTP/1.1"#<Connector port="9090" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/appsvc/conf/server.xml
+```
+
+Check ports free
+```
+sudo ss -ltnp | grep -E ':(8080|9090|8005|9095)' && echo CLASH || echo "ports free"
+```
+
+Install systemd units (home already set to /opt/tomcat11)
+```
+sudo cp systemd/tomcat-webgw.service /etc/systemd/system/
+sudo cp systemd/tomcat-appsvc.service /etc/systemd/system/
+sudo systemctl daemon-reload
+```
+
+Build your application
+```
+cd ~/devops-july-2026
+git pull
+cd Day3/pluginconf-srv
+
+cd web-tier && mvn -q clean package && cd ..
+cd app-tier && mvn -q clean package && cd ..
+```
+
+Verify WAR contents (web tier must show web.xml AND plugin-allow.conf)
+```
+unzip -l web-tier/target/ROOT.war | grep -iE 'web.xml|plugin-allow.conf'
+unzip -l app-tier/target/ROOT.war | grep -i web.xml
+```
+
+Deploy web tier
+```
+sudo rm -rf /srv/webgw/webapps/ROOT /srv/webgw/webapps/ROOT.war
+sudo cp web-tier/target/ROOT.war /srv/webgw/webapps/
+sudo chown $TC_USER:$TC_USER /srv/webgw/webapps/ROOT.war
+```
+
+Deploy app tier
+```
+sudo rm -rf /srv/appsvc/webapps/ROOT /srv/appsvc/webapps/ROOT.war
+sudo cp app-tier/target/ROOT.war /srv/appsvc/webapps/
+sudo chown $TC_USER:$TC_USER /srv/appsvc/webapps/ROOT.war
+```
+
+Start (web tier first)
+```
+sudo systemctl start tomcat-webgw; sleep 5
+sudo systemctl start tomcat-appsvc; sleep 5
+systemctl is-active tomcat-webgw tomcat-appsvc          # both must say active
+sudo ss -ltnp | grep -E ':(8080|9090|8005|9095)'        # all four must listen
+```
+
+Confirm the app tier hosts all three paths (all 200 direct)
+```
+curl -s http://127.0.0.1:9090/shop
+curl -s http://127.0.0.1:9090/reports
+curl -s http://127.0.0.1:9090/admin
+```
+
+Confirm the push wrote the file (app tier auto-pushed /shop,/reports on startup)
+```
+sudo grep -i "push plugin" /srv/appsvc/logs/*.$(date +%F).log
+curl -s http://127.0.0.1:8080/gateway/conf         # file shows /shop and /reports
+curl -s http://127.0.0.1:8080/gateway/active       # empty until you reload
+```
+
+Reload the gateway to apply the pushed list
+```
+curl -s http://127.0.0.1:8080/gateway/reload -H "X-Push-Token: s3cr3t-web-tier"
+curl -s http://127.0.0.1:8080/gateway/active       # now shows /shop, /reports
+```
+
+Test: /shop and /reports pass, /admin is blocked at the web tier
+```
+curl -si http://127.0.0.1:8080/shop    | head -1   # 200
+curl -si http://127.0.0.1:8080/reports | head -1   # 200
+curl -si http://127.0.0.1:8080/admin   | head -1   # 403
+```
+
+Add /admin to the allow-list (edit app-tier config), then push again
+```
+sudo sed -i 's#<param-value>/shop,/reports</param-value>#<param-value>/shop,/reports,/admin</param-value>#' /srv/appsvc/webapps/ROOT/WEB-INF/web.xml
+sleep 2
+curl -s http://127.0.0.1:9090/ops/publish
+curl -s http://127.0.0.1:8080/gateway/conf         # file now includes /admin
+curl -si http://127.0.0.1:8080/admin | head -1      # STILL 403 (not reloaded yet)
+```
+
+Reload, then confirm /admin now works through the web tier
+```
+curl -s http://127.0.0.1:8080/gateway/reload -H "X-Push-Token: s3cr3t-web-tier"
+curl -si http://127.0.0.1:8080/admin | head -1      # 200
+```
+
+One-shot check
+```
+./scripts/verify.sh
+```
 
