@@ -1,6 +1,6 @@
 # Day 3
 
-## Lab - Replicate a session across two Apache instances
+## Lab1 - Replicate a session across two Apache instances
 
 We will setup 2 tomcat instances one that acts as a web tier and the other as app tier
 <pre>
@@ -104,7 +104,7 @@ CATALINA_BASE=/opt/tomcat/apptier $CATALINA_HOME/bin/catalina.sh stop
 CATALINA_BASE=/opt/tomcat/webtier $CATALINA_HOME/bin/catalina.sh stop
 ```
 
-## Lab - App Server push plugin to restrict access to the Web server
+## Lab2 - App Server push plugin to restrict access to the Web server
 
 Pre-flight cleanup (clear stale instances from a previous run)
 ```
@@ -274,7 +274,7 @@ sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clean"
 ls -d /srv/webtier /srv/apptier 2>/dev/null || echo "instances removed"
 ```
 
-## Lab - Push-plugin access control with two Tomcat instances
+## Lab3 - Push-plugin access control with two Tomcat instances
 
 Pre-flight cleanup (clear stale instances from a previous run)
 ```
