@@ -339,6 +339,8 @@ docker exec openldap ldapsearch -x -H ldap://localhost \
 # a returned entry = bind succeeded = credentials valid
 ```
 
+---
+
 # Lab - Configure Keycloak for SSO and policy
 
 #### Pre-flight (OpenLDAP from the previous lab must be running)
@@ -397,7 +399,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   -s 'config.priority=["0"]' \
   -s 'config.editMode=["READ_ONLY"]' \
   -s 'config.vendor=["other"]' \
-  -s 'config.connectionUrl=["ldap://192.168.1.104:389"]' \
+  -s 'config.connectionUrl=["ldap://openldap:389"]' \
   -s 'config.usersDn=["ou=people,dc=tektutor,dc=org"]' \
   -s 'config.bindDn=["cn=admin,dc=tektutor,dc=org"]' \
   -s 'config.bindCredential=["Admin@123"]' \
@@ -460,11 +462,12 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s 'redirectUris=["http://localhost:4180/oauth2/callback"]' \
   -s 'webOrigins=["http://localhost:4180"]'
 
-# capture app1 client secret
+# capture app1 internal id, then its secret straight into an env var
 A1=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
   --query clientId=app1 --fields id --format csv --noquotes | tail -1)
-docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A1/client-secret" -r tektutor
-# note the "value" -> this is APP1_CLIENT_SECRET
+APP1_CLIENT_SECRET=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get \
+  "clients/$A1/client-secret" -r tektutor --fields value --format csv --noquotes | tail -1)
+echo "APP1_CLIENT_SECRET=$APP1_CLIENT_SECRET"   # sanity check, must not be empty
 ```
 
 #### Register application 2 as an OIDC client (app2, proxy on 4181)
@@ -481,8 +484,17 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
 
 A2=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get clients -r tektutor \
   --query clientId=app2 --fields id --format csv --noquotes | tail -1)
-docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A2/client-secret" -r tektutor
-# note APP2_CLIENT_SECRET
+APP2_CLIENT_SECRET=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get \
+  "clients/$A2/client-secret" -r tektutor --fields value --format csv --noquotes | tail -1)
+echo "APP2_CLIENT_SECRET=$APP2_CLIENT_SECRET"   # sanity check, must not be empty
+
+# If your kcadm version ignores --fields on this endpoint and prints full JSON,
+# use this fallback instead (grabs the "value" field):
+#   APP2_CLIENT_SECRET=$(docker exec keycloak /opt/keycloak/bin/kcadm.sh get \
+#     "clients/$A2/client-secret" -r tektutor | grep -oP '"value"\s*:\s*"\K[^"]+')
+#
+# IMPORTANT: keep $A1, $A2, APP1_CLIENT_SECRET, APP2_CLIENT_SECRET in the SAME
+# shell you use to run the proxies below. New terminal = re-run these captures.
 ```
 
 #### Add a groups claim to the token so the proxy can enforce policy
@@ -491,6 +503,12 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh get "clients/$A2/client-secret" 
 # add a group-membership mapper on each client so the ID token carries "groups"
 # full.path=false makes the claim value "developers" (not "/developers"),
 # which is what --allowed-group=developers expects. Keep these paired.
+#
+# NOTE: protocol-mapper config values are PLAIN STRINGS (claim.name=groups),
+# NOT JSON arrays. The ["value"] array form is only for COMPONENT config
+# (the LDAP provider and its mappers). Using ["value"] here fails with
+# "Cannot parse the JSON [unknown_error]". The quoting on the LEFT of =
+# stays, to protect the dots in the key names.
 for CID in $A1 $A2; do
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   "clients/$CID/protocol-mappers/models" -r tektutor \
@@ -503,6 +521,10 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   -s 'config."access.token.claim"=true' \
   -s 'config."userinfo.token.claim"=true'
 done
+
+# confirm the mapper landed on each client
+docker exec keycloak /opt/keycloak/bin/kcadm.sh get \
+  "clients/$A1/protocol-mappers/models" -r tektutor --fields name,protocolMapper
 ```
 
 #### Define the policy: allow only the "developers" group
@@ -527,7 +549,7 @@ docker run -d --name app2 --network ssolab -p 9002:80 \
   hashicorp/http-echo -listen=:80 -text="APP2 backend: you are in"
 ```
 
-#### Protect app1 with oauth2-proxy, restricted to the developers group (paste app1 secret)
+#### Protect app1 with oauth2-proxy, restricted to the developers group
 
 ```bash
 # --network host is the key change. With host networking, one set of
@@ -536,41 +558,59 @@ docker run -d --name app2 --network ssolab -p 9002:80 \
 # --oidc-issuer-url exactly, which oauth2-proxy validates strictly.
 # Drop --network ssolab and -p 4180:4180 when using host networking.
 # (Linux Docker host only; host networking does not work on Docker Desktop.)
+#
+# --client-secret uses the $APP1_CLIENT_SECRET env var captured earlier.
+#   Use DOUBLE quotes so bash expands it. Single quotes pass the literal text.
+# --scope drops "groups": the group claim comes from the client mapper above,
+#   which is unconditional, so requesting a "groups" scope is unnecessary and
+#   fails with invalid_scope unless you also create a "groups" client scope.
+# --cookie-secret is a clean 32-byte base64 value. Do NOT cut it to 32 chars.
+# --insecure-oidc-allow-unverified-email is required because LDAP-federated
+#   users have emailVerified=false, and oauth2-proxy rejects unverified emails
+#   with a 500 at the callback otherwise.
+docker rm -f proxy-app1 2>/dev/null
+COOKIE1=$(openssl rand -base64 32)
 docker run -d --name proxy-app1 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
   --oidc-issuer-url=http://localhost:8080/realms/tektutor \
   --client-id=app1 \
-  --client-secret='QuQ5906LYUyNwtyhB6mZ342Yj7EEpztM' \
+  --client-secret="$APP1_CLIENT_SECRET" \
   --redirect-url=http://localhost:4180/oauth2/callback \
   --upstream=http://localhost:9001 \
   --http-address=0.0.0.0:4180 \
-  --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
+  --cookie-secret="$COOKIE1" \
   --cookie-secure=false \
   --email-domain='*' \
-  --scope="openid profile email groups" \
+  --scope="openid profile email" \
   --allowed-group=developers \
-  --oidc-groups-claim=groups
+  --oidc-groups-claim=groups \
+  --insecure-oidc-allow-unverified-email=true
 ```
 
-#### Protect app2 the same way on 4181 (paste app2 secret)
+#### Protect app2 the same way on 4181
 
 ```bash
+# same fixes as proxy-app1: $APP2_CLIENT_SECRET in double quotes, scope without
+# "groups", clean cookie secret, and the unverified-email flag.
+docker rm -f proxy-app2 2>/dev/null
+COOKIE2=$(openssl rand -base64 32)
 docker run -d --name proxy-app2 --network host \
   quay.io/oauth2-proxy/oauth2-proxy:latest \
   --provider=oidc \
   --oidc-issuer-url=http://localhost:8080/realms/tektutor \
   --client-id=app2 \
-  --client-secret='cWZ1dE3x8uUGwkAzxYWoyokBhNnjY5Kj' \
+  --client-secret="$APP2_CLIENT_SECRET" \
   --redirect-url=http://localhost:4181/oauth2/callback \
   --upstream=http://localhost:9002 \
   --http-address=0.0.0.0:4181 \
-  --cookie-secret="$(openssl rand -base64 32 | tr -d '\n' | cut -c1-32)" \
+  --cookie-secret="$COOKIE2" \
   --cookie-secure=false \
   --email-domain='*' \
-  --scope="openid profile email groups" \
+  --scope="openid profile email" \
   --allowed-group=developers \
-  --oidc-groups-claim=groups
+  --oidc-groups-claim=groups \
+  --insecure-oidc-allow-unverified-email=true
 ```
 
 #### Test: a developer gets in, SSO carries to the second app
