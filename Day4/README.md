@@ -1,5 +1,58 @@
 # Day 4
 
+## Info - IIS as the web and application host for .NET
+<pre>
+IIS (Internet Information Services) is Windows' built-in web server. For .NET it plays two roles at once: the web server that terminates HTTP/HTTPS and serves static content, and the process host that launches and supervises your application's worker processes. The rough Tomcat parallel, since you've been living in that world: IIS is like Apache httpd and the servlet container's process management fused into one Windows service, driven by http.sys (a kernel-mode listener) at the front.
+Requests arrive at http.sys in the kernel, get queued per-site, and IIS worker processes (w3wp.exe) pull from that queue. That kernel-mode front door is why IIS can hold connections while a worker process is starting or recycling.
+</pre>  
+
+Application pools
+<pre>
+An application pool is the isolation and process boundary. Each pool runs one or more worker processes (w3wp.exe), and sites assigned to a pool share that process space. Pools are how you isolate apps from each other on the same server, one crashing app doesn't take down the others. Four settings define a pool:
+</pre>  
+
+CLR version
+<pre>
+Historically this selected the .NET Framework runtime (v2.0 vs v4.0). The critical modern gotcha: for ASP.NET Core, you set this to "No Managed Code." ASP.NET Core doesn't load the .NET Framework CLR into the worker; the app runs its own .NET (Core) runtime out of process or in a native module, so the pool shouldn't load a managed runtime at all. Setting a CLR version for a Core app is a common misconfiguration.
+</pre>  
+
+Pipeline mode
+<pre>
+Integrated vs Classic. Integrated (the default and correct choice for anything modern) merges the IIS and ASP.NET request pipelines so managed modules see every request. Classic mode emulates old IIS 6 behavior and exists only for legacy apps. New apps: Integrated.
+</pre>  
+
+Identity
+<pre>
+he Windows account the worker runs as. ApplicationPoolIdentity is the default and the right choice for most cases, a virtual, per-pool account (IIS AppPool\<PoolName>) with minimal rights, so you grant file/DB access to that specific identity. Alternatives are NetworkService, LocalService, LocalSystem (avoid, over-privileged), or a specific domain/local account when the app needs particular network or database credentials. This is the direct analog of the tomcat user you've been running instances as.
+</pre>
+
+Recycling
+<pre>
+IIS periodically tears down and restarts worker processes to shed leaked memory and stale state. Triggers include a fixed time interval (default was 29 hours / 1740 minutes), specific clock times, a request count, or private-memory / virtual-memory thresholds. Recycling overlaps by default (new worker spins up before the old one drains) so it's normally graceful. The thing to know: recycling drops in-process session state and anything cached in memory, which is exactly the failure mode you just spent hours on with Tomcat session replication, same lesson, different host. For Core apps recycling matters less since state usually lives outside the worker.
+</pre>
+
+Sites and bindings
+<pre>
+A site is a top-level unit with its own root path and one or more bindings. Under a site you can have applications (each mapped to a pool and a virtual path) and virtual directories (path aliases to content elsewhere on disk).
+
+A binding is how IIS decides which site answers a request. A binding is the tuple: protocol + IP address + port + host header (plus an optional SNI/certificate for HTTPS). Examples: http/*:80 catches all host names on port 80; https/*:443 with host header shop.example.com and a bound certificate serves just that host over TLS. Host-header bindings are how one IIS instance serves many sites on the same IP and port, the same virtual-hosting idea as Apache ServerName or Tomcat's Host name=.
+</pre>
+
+The ASP.NET Core Module and the .NET Hosting Bundle
+<pre>
+This is the piece specific to running ASP.NET Core on IIS, and it's where the mental model differs most from .NET Framework.
+ASP.NET Core Module (ANCM) is a native IIS module that hooks ASP.NET Core apps into the IIS pipeline. It runs in one of two hosting models:
+
+In-process (default, faster): the app runs inside the w3wp.exe worker via the Core runtime loaded by ANCM. Fewer network hops, better throughput.
+Out-of-process: IIS acts as a reverse proxy to a separate dotnet.exe process running the app's built-in Kestrel server, forwarding over localhost HTTP. This is conceptually close to your Apache-in-front-of-Tomcat gateway from tonight's labs: IIS terminates the public connection and proxies to the app's own server.
+
+.NET Hosting Bundle is the single installer that makes the above work. It bundles three things: the ASP.NET Core runtime, the .NET runtime, and the ASP.NET Core Module for IIS. You install it on the server after IIS is present (install IIS first, then the Hosting Bundle, so the module registers against IIS), and you run an IIS reset or let the installer restart so ANCM loads. Skipping the bundle, or installing it before IIS, is the classic cause of a 500.19 or 502.5 error where the app won't start.
+The exact bundle version tracks the .NET version you're targeting, and the download/module details do shift release to release, so pull the current specifics from Microsoft's "Host ASP.NET Core on Windows with IIS" doc rather than from any fixed version in your notes.
+
+</pre>
+
+
+
 
 
 ## Info - Configuration Management Tool
