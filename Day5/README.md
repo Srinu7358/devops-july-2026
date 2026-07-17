@@ -1236,12 +1236,13 @@ Create a read-only API token in Jenkins (user menu, Configure, API Token). Give
 that user only Overall/Read and Job/Read in matrix security. Then:
 
 ```
-export JENKINS_URL="https://jenkins.example.com"
-export JENKINS_USER="ci-reader"
-export JENKINS_TOKEN="11xxxxxxxxxxxxxxxxxxxxxxxxx"
+export JENKINS_URL="http://localhost:8080"
+export JENKINS_USER="jegan"
+export JENKINS_TOKEN=""
 unset JENKINS_MOCK
 python client_probe.py     # now hits the real server, still GET-only
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cffbde89-6d5e-4b05-a3e8-bbe6c1553a5b" />
 
 Notes:
 1. `list_deployments` expects jobs named `deploy-staging`, `deploy-prod`, etc.
