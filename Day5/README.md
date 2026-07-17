@@ -976,6 +976,7 @@ EOF
 JENKINS_MOCK=1 python -c "import jenkins_client as jk; print(jk.build_status('payments-api')); print(jk.deployments('prod'))"
 # Expect: payments-api SUCCESS #412, and two prod deploy rows
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0195ed18-f0b3-418e-b217-a9f8c3c6c9e8" />
 
 #### Write the MCP server
 
