@@ -857,8 +857,9 @@ Verified on Python 3.12 with mcp 1.28, httpx 0.28, anthropic 0.117.
 #### Prerequisites
 
 ```
+sudo apt update && sudo apt install -y python3.14-venv node
 python3 --version          # need 3.10 or newer
-node --version             # optional, only for the MCP Inspector step - can be install with sudo apt install -y node
+node --version             # optional, only for the MCP Inspector step 
 ```
 
 #### Create the project and virtual environment
@@ -1016,7 +1017,7 @@ def list_deployments(env: str) -> str:
 # def trigger_deploy(env: str, confirm_token: str = "") -> str:
 #     """Trigger a deploy. Requires an approval token from a human."""
 #     expected = os.environ.get("DEPLOY_APPROVAL_TOKEN", "")
-#     if not expected or confirm_token != expected:
+#     if not expected or confirsudo apt update && sudo apt install -y python3.14-venvm_token != expected:
 #         return json.dumps({"status": "blocked", "reason": "approval required"})
 #     # ... only here would you POST to /job/deploy-<env>/build ...
 #     return json.dumps({"status": "queued", "env": env})
