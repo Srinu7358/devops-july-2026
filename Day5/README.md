@@ -1,5 +1,10 @@
 # Day 5
 
+## Info - Kindly share your feedback and complete the post-test on your lab machine
+<pre>
+https://notepad.pw/DevOps13
+</pre>
+
 ## Info - Container Orchestration Platform
 <pre>
 - provides an environment with all the required features to make your application Highly Available
