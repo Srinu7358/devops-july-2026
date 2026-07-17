@@ -1426,15 +1426,17 @@ asyncio.run(main())
 </pre>
 
 
-## Lab - XLR
+## Lab - XLR CI/CD Demo
 ```
 sudo timedatectl set-ntp false
 sudo date -s "2020-07-17 09:00:00"
 
+cd ~/xl-release-10.2.1-server/bin
+./run.sh
 ```
-
 
 Accessing XLR from your lab web browser
 ```
 http://localhost:5516
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/e1337531-5378-49fa-abf6-1e8732ec1138" />
