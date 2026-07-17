@@ -861,6 +861,7 @@ sudo apt update && sudo apt install -y python3.14-venv node npm
 python3 --version          # need 3.10 or newer
 node --version             # optional, only for the MCP Inspector step 
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/1ff10b41-09a5-41ad-9636-74a2a20b1313" />
 
 #### Create the project and virtual environment
 
@@ -871,7 +872,7 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 ```
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/c6d5c09a-f9f3-4b71-ad90-b38dfa8f9ff5" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/27da1315-338c-4185-9278-01286f393484" />
 
 
 #### Pin and install dependencies
@@ -888,8 +889,9 @@ pip install -r requirements.txt
 # Confirm the core import works
 python -c "from mcp.server.fastmcp import FastMCP; import httpx; print('mcp + httpx OK')"
 ```
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/083589d5-3b81-471c-a2b0-8f1b99a60711" />
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ef2041f6-26a9-462a-8833-afb7485ef6d2" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/3e7f9a76-42c0-450e-a1c9-1b566ea36739" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/2927649d-cc5c-44cb-bb9e-c8c902fc6ae7" />
+
 
 #### Write the read-only Jenkins access layer
 
@@ -1023,7 +1025,7 @@ EOF
 JENKINS_MOCK=1 python -c "import jenkins_client as jk; print(jk.build_status('payments-api')); print(jk.deployments('prod'))"
 # Expect: payments-api SUCCESS #412, and two prod deploy rows
 ```
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/0195ed18-f0b3-418e-b217-a9f8c3c6c9e8" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/b65b04b7-c9e3-41e0-aa4e-d8b7df3e6414" />
 
 #### Write the MCP server
 
@@ -1135,6 +1137,7 @@ JENKINS_MOCK=1 python client_probe.py
 ```
 
 Expected output:
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/d54a3631-de5f-47de-bf52-5c1922a2f353" />
 
 ```
 == TOOLS ADVERTISED ==
@@ -1157,6 +1160,10 @@ hand. Pass the env through so mock mode reaches the server.
 JENKINS_MOCK=1 npx @modelcontextprotocol/inspector python server.py
 # Open the printed localhost URL, pick a tool, fill the arg, click Call.
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/7ddfdd05-a286-4886-9472-7159001b4b28" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/6857c0f9-335e-4045-afba-c210bbd64ad3" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/dae9f321-a55b-4d19-adab-0b200947dab1" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/840e444f-9c9a-48b8-9656-68835d2be1c5" />
 
 #### Connect an LLM client that forces a tool call (Anthropic)
 
@@ -1210,7 +1217,9 @@ if __name__ == "__main__":
 EOF
 ```
 
-Run it. The question is phrased so a plain text answer is impossible cat > ask.py <<'EOF'
+Run it. The question is phrased so a plain text answer is impossible 
+```
+cat > ask.py <<'PYEOF'
 import asyncio, json, os, sys
 from anthropic import Anthropic
 from mcp import ClientSession, StdioServerParameters
@@ -1221,7 +1230,7 @@ _fwd = {k: v for k, v in os.environ.items() if k.startswith("JENKINS_")}
 params = StdioServerParameters(command="python", args=["server.py"], env=_fwd or None)
 
 async def run(question: str):
-    client = Anthropic()  # reads ANTHROPIC_API_KEY
+    client = Anthropic()
     async with stdio_client(params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -1252,12 +1261,13 @@ if __name__ == "__main__":
     q = " ".join(sys.argv[1:]) or "Did the last build of payments-api pass, and what happened in the two most recent prod deployments?"
     print(f"QUESTION: {q}")
     asyncio.run(run(q))
-EOF
+PYEOF
 ```
 export ANTHROPIC_API_KEY=sk-ant-...              # your key
 # export ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # or any model on your account
 JENKINS_MOCK=1 python ask.py
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/22205805-66c4-4fc2-8ec6-7758cc6823b4" />
 
 You should see two `TOOL CALL` lines, their raw JSON results, then a final answer
 that stitches them together. Change the question to see the model pick different
@@ -1266,6 +1276,7 @@ tools:
 ```
 JENKINS_MOCK=1 python ask.py "Is web-frontend green right now?"
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/8c822828-9b07-4c57-a043-43d179042dd3" />
 
 #### Gemini free-tier alternative (no paid key)
 
@@ -1334,7 +1345,7 @@ matrix security. Then set the connection:
 ```
 export JENKINS_URL="http://localhost:8080"
 export JENKINS_USER="jegan"
-export JENKINS_TOKEN="<your-api-token>"
+export JENKINS_TOKEN="11086357f154a123861e108c99735f7245"
 unset JENKINS_MOCK
 ```
 
@@ -1345,27 +1356,28 @@ server. A 404 (not 401/403) means auth worked and the job simply does not exist.
 List what your Jenkins actually has:
 
 ```
-curl -s -u "$JENKINS_USER:$JENKINS_TOKEN" \
-  "$JENKINS_URL/api/json?tree=jobs[name,url]" \
-  | python3 -c "import sys,json; [print(j['name'],'->',j['url']) for j in json.load(sys.stdin)['jobs']]"
+python3 -c "import json; d=json.load(open('/tmp/jobs.json')); [print(j['name'],'->',j['url']) for j in d['jobs']]"
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/cf58d25c-c32a-4f06-8c37-7faf864cb497" />
 
 If a job lives inside a folder or multibranch pipeline, recurse one level:
 
-```bash
-curl -s -u "$JENKINS_USER:$JENKINS_TOKEN" \
+```
+curl -g -s -u "$JENKINS_USER:$JENKINS_TOKEN" \
   "$JENKINS_URL/api/json?tree=jobs[name,url,jobs[name,url]]" | python3 -m json.tool
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/eacfe9ea-85d2-47f8-a8d5-ce08ee150813" />
 
 #### Verify the raw API for one real job
 
 Replace `java-cicd-pipeline` with a name from the list above. A `200` with a JSON
 body confirms the read path end to end.
 
-```bash
+```
 curl -i -u "$JENKINS_USER:$JENKINS_TOKEN" \
   "$JENKINS_URL/job/java-cicd-pipeline/lastBuild/api/json?tree=number,result,building,url" | head -20
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/4b42fb96-7b75-476b-9b43-6df5c8d310da" />
 
 Expected tail:
 
@@ -1385,130 +1397,20 @@ python3 -c "
 import asyncio, os
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-_fwd = {k:v for k,v in os.environ.items() if k.startswith('JENKINS_')}
-p = StdioServerParameters(command='python', args=['server.py'], env=_fwd)
+_fwd={k:v for k,v in os.environ.items() if k.startswith('JENKINS_')}
+p=StdioServerParameters(command='python',args=['server.py'],env=_fwd)
 async def main():
     async with stdio_client(p) as (r,w):
         async with ClientSession(r,w) as s:
             await s.initialize()
-            out = await s.call_tool('get_build_status', {'job': 'java-cicd-pipeline'})
-            print(out.content[0].text)
+            b=await s.call_tool('get_build_status',{'job':'java-cicd-pipeline'})
+            print('get_build_status:', b.content[0].text)
+            j=await s.call_tool('list_jobs',{})
+            print('list_jobs:', j.content[0].text)
 asyncio.run(main())
-"
+" > /tmp/mcp.txt 2>&1 ; cat /tmp/mcp.txt
 ```
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/fbbd2c5d-8be0-47e6-ad55-970c7989d8ef" />
 
-#### Handle list_deployments for a single-pipeline setup
 
-`list_deployments` defaults to jobs named `deploy-<env>`. If you have one pipeline
-job rather than per-env deploy jobs, point the tool at that job's build history
-with `DEPLOY_JOB`. No code change needed; the resolver already reads it.
 
-```
-export DEPLOY_JOB="java-cicd-pipeline"
-# now list_deployments("prod") returns this pipeline's recent builds
-```
-
-When you later build real per-env deploy jobs (`deploy-staging`, `deploy-prod`),
-just `unset DEPLOY_JOB` and the naming convention takes over.
-
-#### Auto-discover all jobs and their status (no job names needed)
-
-This is the self-configuring path. `list_jobs` walks every job, including inside
-folders, and reports each one's latest build. It replaces having to know job
-names up front.
-
-```
-python3 -c "
-import asyncio, os
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-_fwd = {k:v for k,v in os.environ.items() if k.startswith('JENKINS_')}
-p = StdioServerParameters(command='python', args=['server.py'], env=_fwd)
-async def main():
-    async with stdio_client(p) as (r,w):
-        async with ClientSession(r,w) as s:
-            await s.initialize()
-            out = await s.call_tool('list_jobs', {})
-            print(out.content[0].text)
-asyncio.run(main())
-"
-```
-
-On your instance this returns `java-cicd-pipeline` with `result: SUCCESS` and its
-build number. Add jobs in Jenkins and they appear here with no code change.
-
-#### Run the full LLM demo against real Jenkins
-
-Because `list_jobs` needs no arguments, you can ask a broad question and let the
-model discover everything itself.
-
-```
-python ask.py "What jobs are on this Jenkins and which ones are currently failing?"
-```
-
-You should see a single `list_jobs` call, its raw result, then a summary the model
-builds from it. For a targeted question the model still picks `get_build_status`:
-
-```
-python ask.py "Did the last build of java-cicd-pipeline pass?"
-```
-
-Notes:
-1. A 404 through the tool now returns a clean `found: false` message instead of a
-   stack trace, so a wrong job name in the demo reads cleanly.
-2. If you see 401, the token or user is wrong. If you see 403, the token user
-   lacks Job/Read on that job. Fix permissions, never add write scope.
-3. Your API token ends up in shell history. Put the exports in a file you
-   `source` with `chmod 600`, and revoke the token after the session (your user,
-   Configure, API Token, Revoke).
-
-#### Guardrails discussion (run this with the class)
-
-Read-only vs write. Both tools here are GET-only and safe to auto-run. A write
-tool (`trigger_deploy`, cancel, delete) changes state and must never auto-execute
-from a model's decision alone. Show the disabled block in `server.py`: it returns
-`blocked` unless a human supplies the current approval token.
-
-```
-# Demonstrate the gate logic without exposing the tool:
-python - <<'EOF'
-import os
-def trigger_deploy(env, confirm_token=""):
-    expected = os.environ.get("DEPLOY_APPROVAL_TOKEN", "")
-    if not expected or confirm_token != expected:
-        return {"status": "blocked", "reason": "approval required"}
-    return {"status": "queued", "env": env}
-
-print(trigger_deploy("prod"))                       # blocked, no token set
-os.environ["DEPLOY_APPROVAL_TOKEN"] = "abc123"
-print(trigger_deploy("prod", "wrong"))              # blocked, wrong token
-print(trigger_deploy("prod", "abc123"))             # queued, human approved
-EOF
-```
-
-Talking points:
-1. Least privilege at the source. The Jenkins token is read-only, so even a bug
-   or prompt injection in the model cannot deploy. The safest write tool is the
-   one that does not exist.
-2. Authentication lives in the server, never in the model. The model sees tool
-   names and schemas, not credentials. Rotate the token like any other secret.
-3. Approval gates for any state change. A write tool returns "blocked" and hands
-   back what approval is needed. A human (not the model) supplies the token out
-   of band. The model can request a deploy but cannot grant it.
-4. Transport and exposure. stdio keeps the server local to the client. If you move
-   to HTTP (`mcp.run(transport="streamable-http")`), you now need network auth,
-   TLS, and access control in front of it.
-5. Audit. Log every tool call with its arguments and caller. Read calls are cheap
-   to log and invaluable when something looks wrong.
-
-#### Teardown
-
-```
-# Nothing was installed system-wide and no Jenkins state was changed.
-deactivate 2>/dev/null || true
-cd ~
-rm -rf ~/devops-july-2026/Day5/mcp-jenkins-lab   # only if you want it gone
-
-# If you added the Claude Desktop entry, remove the jenkins-readonly block
-# from claude_desktop_config.json and restart Claude Desktop.
-```
