@@ -672,16 +672,32 @@ sudo exportfs -ra
 findmnt -t nfs || echo "no nfs mounts left"
 ```
 
-## Lab5 - Mount NAS and scale to 3 Tomcat servers
+# Lab5 - Mount NAS and scale to 3 Tomcat servers
 
-Pre-flight (clean any prior NFS state so a stale mount can't hang this run)
+#### Pre-check: the three node instances must already exist
+
+This lab assumes `/srv/node1`, `/srv/node2`, `/srv/node3` and their
+`tomcat-node1/2/3` services were built in an earlier lab, listening on
+9081/9082/9083. Confirm before you start.
+
+```
+for n in node1 node2 node3; do
+  ls -d /srv/$n/conf/server.xml >/dev/null 2>&1 && systemctl cat tomcat-$n >/dev/null 2>&1 \
+    && echo "$n OK" || echo "$n MISSING - build the node instances first"
+done
+sudo ss -ltnp | grep -E ':(9081|9082|9083)' || echo "node HTTP ports not listening"
+```
+
+#### Pre-flight (clean any prior NFS state so a stale mount can't hang this run)
+
 ```
 sudo umount -f -l /export/shared 2>/dev/null; sudo umount -f -l /mnt/shared 2>/dev/null
-sudo sed -i '\#/export/shared#d' /etc/fstab
+sudo sed -i '\#127.0.0.1:/export/shared#d' /etc/fstab
 findmnt -t nfs || echo "no nfs mounts"
 ```
 
-Create and seed the export
+#### Create and seed the export
+
 ```
 sudo mkdir -p /export/shared
 sudo chown -R tomcat:tomcat /export/shared
@@ -689,43 +705,51 @@ sudo chmod 0775 /export/shared
 echo "shared appBase drop folder" | sudo tee /export/shared/README.txt >/dev/null
 ```
 
-Export /export/shared over NFS (single host: export to loopback + local subnet)
+#### Export /export/shared over NFS (single host: export to loopback)
+
+Uses `root_squash` (the default). Tomcat runs as `tomcat` and the folder is
+owned by `tomcat`, so client root access is never needed. Drop `no_root_squash`.
+
 ```
 sudo tee -a /etc/exports >/dev/null <<'EOF'
-/export/shared  127.0.0.1(rw,sync,no_subtree_check,no_root_squash)
+/export/shared  127.0.0.1(rw,sync,no_subtree_check)
 EOF
-sudo exportfs -ra
 sudo systemctl enable --now nfs-kernel-server
+sudo exportfs -ra
 sudo exportfs -v
-showmount -e 127.0.0.1
+showmount -e 127.0.0.1               # if empty, check rpcbind is running
 ```
 
-Mount on ONE Tomcat host manually first (verify before fstab)
+#### Mount on ONE Tomcat host manually first (verify before fstab)
+
 ```
 sudo mkdir -p /mnt/shared
 sudo mount -t nfs 127.0.0.1:/export/shared /mnt/shared
 findmnt /mnt/shared
-cat /mnt/shared/README.txt          # proves the mount works
+cat /mnt/shared/README.txt           # proves the mount works
 ```
 
-Add the mount to /etc/fstab with _netdev
+#### Add the mount to /etc/fstab with _netdev
+
 ```
 sudo tee -a /etc/fstab >/dev/null <<'EOF'
 127.0.0.1:/export/shared  /mnt/shared  nfs  rw,soft,bg,_netdev,nofail,timeo=30,retrans=3  0 0
 EOF
 sudo umount /mnt/shared
 sudo mount -a
-findmnt /mnt/shared                 # reappears from fstab
+findmnt /mnt/shared                  # reappears from fstab
 ```
 
-Confirm Ansible reaches the fleet (inventory should already have tomcat_nodes)
+#### Confirm Ansible reaches the fleet
+
 ```
 ansible --version
 ansible tomcat_nodes -m ping
 ansible tomcat_nodes --list-hosts
 ```
 
-If tomcat_nodes is not defined yet, create a minimal inventory
+#### If tomcat_nodes is not defined yet, create a minimal inventory
+
 ```
 mkdir -p ~/devops-july-2026/Day3/nas-ansible
 cat > ~/devops-july-2026/Day3/nas-ansible/inventory.ini <<'EOF'
@@ -740,7 +764,8 @@ EOF
 cat ~/devops-july-2026/Day3/nas-ansible/inventory.ini
 ```
 
-Write the Ansible play to mount the share fleet-wide
+#### Write the Ansible play to mount the share fleet-wide
+
 ```
 cat > ~/devops-july-2026/Day3/nas-ansible/mount-nas.yml <<'EOF'
 ---
@@ -752,9 +777,9 @@ cat > ~/devops-july-2026/Day3/nas-ansible/mount-nas.yml <<'EOF'
     nfs_export: "/export/shared"
     mount_point: "/mnt/shared"
   tasks:
-    - name: Ensure nfs-common is installed
+    - name: Ensure the NFS client package is installed
       ansible.builtin.package:
-        name: nfs-common
+        name: "{{ 'nfs-common' if ansible_os_family == 'Debian' else 'nfs-utils' }}"
         state: present
 
     - name: Ensure mount point exists
@@ -774,32 +799,37 @@ EOF
 cat ~/devops-july-2026/Day3/nas-ansible/mount-nas.yml
 ```
 
-Make sure the posix collection is present (provides ansible.posix.mount)
+#### Make sure the posix collection is present (provides ansible.posix.mount)
+
 ```
 ansible-galaxy collection install ansible.posix
 ```
 
-Run the play against the fleet
+#### Run the play against the fleet
+
 ```
 cd ~/devops-july-2026/Day3/nas-ansible
 ansible-playbook -i inventory.ini mount-nas.yml
 ```
 
-Verify the mount landed on all three nodes
-```
+#### Verify the mount landed on all three nodes
+
+```bash
 ansible tomcat_nodes -b -m shell -a "findmnt /mnt/shared"
 ansible tomcat_nodes -b -m shell -a "cat /mnt/shared/README.txt"
 ```
 
-Prepare the shared appBase (one folder all three nodes deploy from)
+#### Prepare the shared appBase (one folder all three nodes deploy from)
+
 ```
 sudo mkdir -p /export/shared/webapps
 sudo chown -R tomcat:tomcat /export/shared/webapps
 sudo chmod 0775 /export/shared/webapps
-ls -ld /mnt/shared/webapps          # visible through every node's mount
+ls -ld /mnt/shared/webapps           # visible through every node's mount
 ```
 
-Point each instance appBase at the shared folder
+#### Point each instance appBase at the shared folder
+
 ```
 for n in node1 node2 node3; do
   sudo sed -i 's#appBase="webapps"#appBase="/mnt/shared/webapps" unpackWARs="false" autoDeploy="true"#' \
@@ -808,56 +838,77 @@ for n in node1 node2 node3; do
 done
 ```
 
-Restart the fleet so the new appBase takes effect
+Note: three instances auto-deploying from one shared appBase is unsupported by
+Tomcat and can fail intermittently on NFS. This lab uses it to demonstrate the
+concept on a single host. The atomic `mv` in the deploy step below reduces the
+partial-read risk. For production you would deploy per-instance, not shared.
+
+#### Restart the fleet so the new appBase takes effect
+
+Service names are `tomcat-node1/2/3`, so restart `tomcat-$n` (not
+`tomcat-node$n`, which would expand to `tomcat-nodenode1`).
+
 ```
-for n in node1 node2 node3; do sudo systemctl restart tomcat-node$n; sleep 4; done
+for n in node1 node2 node3; do sudo systemctl restart tomcat-$n; sleep 4; done
 for n in node1 node2 node3; do
-  echo -n "node$n: "; systemctl is-active tomcat-node$n
+  echo -n "$n: "; systemctl is-active tomcat-$n
 done
 ```
 
-Drop ONE WAR into the shared folder and watch it deploy fleet-wide
+#### Drop ONE WAR into the shared folder and watch it deploy fleet-wide
+
+Copy to a temp name, then `mv` into place so autoDeploy only ever sees a
+complete file.
+
 ```
 # use any WAR you have; example uses the plugin-conf app-tier build
 sudo cp ~/devops-july-2026/Day3/pluginconf-srv/app-tier/target/ROOT.war \
-        /mnt/shared/webapps/shared.war
-sudo chown tomcat:tomcat /mnt/shared/webapps/shared.war
+        /mnt/shared/webapps/.shared.war.tmp
+sudo chown tomcat:tomcat /mnt/shared/webapps/.shared.war.tmp
+sudo mv /mnt/shared/webapps/.shared.war.tmp /mnt/shared/webapps/shared.war
 sleep 8
 ```
 
-Confirm all three nodes served the single dropped WAR
+#### Confirm all three nodes served the single dropped WAR
+
+Hit the context root. The WAR deploys as `/shared`; only add a servlet path
+like `/api/products` if the app actually maps it.
+
 ```
 for p in 9081 9082 9083; do
-  echo -n "port $p /shared/shop: "
-  curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:$p/shared/shop
+  echo -n "port $p /shared/: "
+  curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:$p/shared/
 done
 ```
 
-Verify the whole setup
+#### Verify the whole setup
+
 ```
 ansible tomcat_nodes -b -m shell -a "findmnt /mnt/shared"
 ls -l /mnt/shared/webapps
 for p in 9081 9082 9083; do
-  echo -n "port $p: "; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:$p/shared/shop
+  echo -n "port $p: "; curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:$p/shared/
 done
 ```
 
-Teardown (unmount fleet-wide and clean fstab before the next lab)
+#### Teardown (unmount fleet-wide and clean fstab before the next lab)
+
 ```
 # revert appBase and restart
 for n in node1 node2 node3; do
   sudo sed -i 's#appBase="/mnt/shared/webapps" unpackWARs="false" autoDeploy="true"#appBase="webapps"#' \
     /srv/$n/conf/server.xml
-  sudo systemctl restart tomcat-node$n
+  sudo systemctl restart tomcat-$n
 done
 
-# unmount on the fleet and remove fstab entry via Ansible
+# unmount on the fleet and remove the fstab entry via Ansible
 ansible tomcat_nodes -b -m ansible.posix.mount -a \
   "path=/mnt/shared state=absent"
 
-# stop and clean the server side
+# clean the server side
 sudo umount -f -l /mnt/shared 2>/dev/null
-sudo sed -i '\#/export/shared#d' /etc/fstab /etc/exports
+sudo sed -i '\#127.0.0.1:/export/shared#d' /etc/fstab
+sudo sed -i '\#^/export/shared#d' /etc/exports
 sudo exportfs -ra
 findmnt -t nfs || echo "no nfs mounts left"
 ```
