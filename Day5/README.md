@@ -1238,7 +1238,7 @@ that user only Overall/Read and Job/Read in matrix security. Then:
 ```
 export JENKINS_URL="http://localhost:8080"
 export JENKINS_USER="jegan"
-export JENKINS_TOKEN=""
+export JENKINS_TOKEN="11086357f154a123861e108c99735f7245"
 unset JENKINS_MOCK
 python client_probe.py     # now hits the real server, still GET-only
 ```
