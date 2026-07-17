@@ -1242,7 +1242,7 @@ export JENKINS_TOKEN=""
 unset JENKINS_MOCK
 python client_probe.py     # now hits the real server, still GET-only
 ```
-<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/cffbde89-6d5e-4b05-a3e8-bbe6c1553a5b" />
+<img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/90cb3f20-c156-4ac6-9eee-90f4c0db04fb" />
 
 Notes:
 1. `list_deployments` expects jobs named `deploy-staging`, `deploy-prod`, etc.
