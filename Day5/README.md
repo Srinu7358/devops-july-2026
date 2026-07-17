@@ -857,7 +857,7 @@ Verified on Python 3.12 with mcp 1.28, httpx 0.28, anthropic 0.117.
 #### Prerequisites
 
 ```
-sudo apt update && sudo apt install -y python3.14-venv node
+sudo apt update && sudo apt install -y python3.14-venv node npm
 python3 --version          # need 3.10 or newer
 node --version             # optional, only for the MCP Inspector step 
 ```
