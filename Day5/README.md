@@ -835,6 +835,12 @@ docker logs --tail 15 proxy-app1
     - review this code for security issues
 </pre>
 
+## Info - MCP (AI Agent)
+<pre>​ 
+- Model Context Protocol connects AI assistants to external tools and data
+- An MCP server exposes tools, resources, and prompts, an AI client connects over stdio or HTTP
+</pre>
+
 ## Lab - Build and call an MCP server
 
 Install the MCP SDK
