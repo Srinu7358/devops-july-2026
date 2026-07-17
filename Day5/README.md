@@ -435,7 +435,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh create components -r tektutor \
 
 #### Sync users and groups from OpenLDAP
 
-```bash
+```
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create \
   "user-storage/$LDAP_ID/sync?action=triggerFullSync" -r tektutor
 
@@ -452,7 +452,7 @@ docker exec keycloak /opt/keycloak/bin/kcadm.sh get groups -r tektutor \
 
 #### Register application 1 as an OIDC client (app1, proxy on 4180)
 
-```bash
+```
 docker exec keycloak /opt/keycloak/bin/kcadm.sh create clients -r tektutor \
   -s clientId=app1 \
   -s enabled=true \
@@ -1263,7 +1263,10 @@ if __name__ == "__main__":
     asyncio.run(run(q))
 PYEOF
 ```
-export ANTHROPIC_API_KEY=sk-ant-...              # your key
+
+Run the MCP AI Agent with Anthropic Access Keys
+```
+# export ANTHROPIC_API_KEY=sk-ant-...                # your key
 # export ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # or any model on your account
 JENKINS_MOCK=1 python ask.py
 ```
