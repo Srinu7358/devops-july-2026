@@ -104,28 +104,42 @@ sudo CATALINA_BASE=/opt/tomcat11/webtier $CATALINA_HOME/bin/catalina.sh stop
 
 ## Lab2 - App Server push plugin to restrict access to the Web server
 
-Check your base server.xml ports first (the port rewrites below depend on these)
+#### Check your base server.xml ports first
+
+The port rewrites below depend on these. If this shows `8080`/`8005` (stock
+Tomcat 11), use the stock-port sed block. If it shows `8100`/`8007`, your base
+was pre-customized and you must adjust the left-hand port numbers in every sed
+below. The blocks here assume stock `8080`/`8005`.
+
 ```
 grep -nE '<Server port=|<Connector port=' /opt/tomcat11/conf/server.xml
 ```
-> If this shows `8080`/`8005` (stock Tomcat 11), use the stock-port sed block. If it shows `8100`/`8007`, your base was pre-customized and the original sed patterns apply. The blocks below assume stock `8080`/`8005`.
 
-Pre-flight cleanup (clear stale instances from a previous run)
+#### Pre-flight cleanup (clear stale instances from a previous run)
+
 ```
-sudo systemctl stop tomcat-webtier tomcat-appstier 2>/dev/null
+sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
 sudo pkill -f '/srv/webtier'; sudo pkill -f '/srv/apptier'
 sleep 2
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' || echo "clear to start"
 ```
 
-Read your Tomcat paths
+#### Set your Tomcat paths
+
 ```
-systemctl cat tomcat-node1 | grep -E "CATALINA_HOME|JAVA_HOME|User"
 export CATALINA_HOME=/opt/tomcat11
+export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
 export TC_USER=tomcat
+
+# Sanity check all three resolved
+echo "CATALINA_HOME=$CATALINA_HOME"
+echo "JAVA_HOME=$JAVA_HOME"
+echo "TC_USER=$TC_USER"
+ls -d "$CATALINA_HOME" "$JAVA_HOME" && id "$TC_USER" >/dev/null && echo "paths OK"
 ```
 
-Create webtier and apptier tomcat instances
+#### Create webtier and apptier tomcat instances
+
 ```
 for inst in webtier apptier; do
   sudo mkdir -p /srv/$inst/{conf,logs,temp,webapps,work,bin}
@@ -134,137 +148,192 @@ done
 sudo chown -R $TC_USER:$TC_USER /srv/webtier /srv/apptier
 ```
 
-Configure Web-tier ports (stock base: 8080 HTTP, 8005 shutdown)
+#### Configure Web-tier ports (stock base: 8080 HTTP, 8005 shutdown)
+
 ```
 sudo sed -i 's/<Connector port="8080"/<Connector port="9091"/' /srv/webtier/conf/server.xml
 sudo sed -i 's/<Server port="8005"/<Server port="9015"/' /srv/webtier/conf/server.xml
-sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/webtier/conf/server.xml
 grep -nE '<Server port=|<Connector port=' /srv/webtier/conf/server.xml
 ```
 
-Configure App-tier ports (stock base: 8080 HTTP, 8005 shutdown)
+#### Configure App-tier ports (stock base: 8080 HTTP, 8005 shutdown)
+
 ```
 sudo sed -i 's/<Connector port="8080"/<Connector port="9092"/' /srv/apptier/conf/server.xml
 sudo sed -i 's/<Server port="8005"/<Server port="9016"/' /srv/apptier/conf/server.xml
-sudo sed -i '/<Connector port="8443"/,/\/>/d' /srv/apptier/conf/server.xml
 grep -nE '<Server port=|<Connector port=' /srv/apptier/conf/server.xml
 ```
 
-Bind to loopback
+#### Comment out the SSL connector (safer than a range delete)
+
+The stock 8443 connector sits inside a comment block. A range delete can leave an
+unbalanced comment marker and break the XML. Instead, rename its port so it never
+binds, then confirm the file still parses.
+
+```
+sudo sed -i 's/<Connector port="8443"/<Connector port="8443" enabled="false" _disabled="true"/' /srv/webtier/conf/server.xml
+sudo sed -i 's/<Connector port="8443"/<Connector port="8443" enabled="false" _disabled="true"/' /srv/apptier/conf/server.xml
+
+# Verify both files are still well-formed XML
+for f in /srv/webtier/conf/server.xml /srv/apptier/conf/server.xml; do
+  xmllint --noout "$f" && echo "$f OK" || echo "$f BROKEN"
+done
+```
+
+#### Bind to loopback
+
 ```
 sudo sed -i 's#<Connector port="9091" protocol="HTTP/1.1"#<Connector port="9091" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/webtier/conf/server.xml
 sudo sed -i 's#<Connector port="9092" protocol="HTTP/1.1"#<Connector port="9092" address="127.0.0.1" protocol="HTTP/1.1"#' /srv/apptier/conf/server.xml
-```
 
-Confirm the loopback bind landed (both must print a match)
-```
+# Both must print a match
 grep -n 'address="127.0.0.1"' /srv/webtier/conf/server.xml /srv/apptier/conf/server.xml
 ```
 
-Check ports free
+#### Make the app-tier context reloadable (needed for Test C)
+
+Test C edits `web.xml` on disk and expects the change to take effect live. Stock
+contexts are `reloadable="false"`, so the running app never re-reads the file.
+Set the app-tier ROOT context reloadable now.
+
+```
+sudo mkdir -p /srv/apptier/conf/Catalina/localhost
+sudo tee /srv/apptier/conf/Catalina/localhost/ROOT.xml >/dev/null <<'EOF'
+<Context reloadable="true" />
+EOF
+sudo chown -R $TC_USER:$TC_USER /srv/apptier/conf/Catalina
+```
+
+#### Check ports free
+
 ```
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)' && echo CLASH || echo "ports free"
 ```
 
-Install systemd units (set CATALINA_HOME/JAVA_HOME/User via real placeholders in both first)
+#### Install systemd units
+
+Replace the shipped placeholders with your real values. Adjust the left-hand
+tokens to match whatever your unit templates actually use. These units must also
+set `CATALINA_BASE` per instance, or both tiers fall back to `CATALINA_HOME` and
+bind stock 8080/8005, which clashes.
+
 ```
 cd ~/devops-july-2026
 git pull
 cd Day3/pluginconf-srv
 
-# Replace the shipped placeholders with your real values. Adjust the
-# left-hand tokens to match whatever your unit templates actually use.
 sed -i 's#__CATALINA_HOME__#/opt/tomcat11#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
-sed -i "s#__JAVA_HOME__#$(dirname $(dirname $(readlink -f $(which java))))#g" systemd/tomcat-webtier.service systemd/tomcat-apptier.service
+sed -i "s#__JAVA_HOME__#$JAVA_HOME#g" systemd/tomcat-webtier.service systemd/tomcat-apptier.service
 sed -i 's#__TC_USER__#tomcat#g' systemd/tomcat-webtier.service systemd/tomcat-apptier.service
 
 # Confirm no placeholders remain
 grep -nE '__CATALINA_HOME__|__JAVA_HOME__|__TC_USER__' systemd/*.service || echo "placeholders resolved"
+
+# Confirm each unit points CATALINA_BASE at its own instance dir
+grep -n 'CATALINA_BASE' systemd/tomcat-webtier.service | grep -q '/srv/webtier' \
+  && echo "webtier base OK" || echo "webtier CATALINA_BASE missing or wrong"
+grep -n 'CATALINA_BASE' systemd/tomcat-apptier.service | grep -q '/srv/apptier' \
+  && echo "apptier base OK" || echo "apptier CATALINA_BASE missing or wrong"
 
 sudo cp systemd/tomcat-webtier.service /etc/systemd/system/
 sudo cp systemd/tomcat-apptier.service /etc/systemd/system/
 sudo systemctl daemon-reload
 ```
 
-Build your application
-```
+#### Build your application
+
+```bash
 cd web-tier && mvn -q clean package && cd ..
 cd app-tier && mvn -q clean package && cd ..
 ```
 
-Verify descriptor in WAR (must print WEB-INF/web.xml)
+#### Verify descriptor in WAR (must print WEB-INF/web.xml)
+
 ```
 unzip -l web-tier/target/ROOT.war | grep -i web.xml
 unzip -l app-tier/target/ROOT.war | grep -i web.xml
 ```
 
-Deploy web tier
+#### Deploy web tier
+
 ```
 sudo rm -rf /srv/webtier/webapps/ROOT /srv/webtier/webapps/ROOT.war
 sudo cp web-tier/target/ROOT.war /srv/webtier/webapps/
 sudo chown $TC_USER:$TC_USER /srv/webtier/webapps/ROOT.war
 ```
 
-Deploy app tier
+#### Deploy app tier
+
 ```
 sudo rm -rf /srv/apptier/webapps/ROOT /srv/apptier/webapps/ROOT.war
 sudo cp app-tier/target/ROOT.war /srv/apptier/webapps/
 sudo chown $TC_USER:$TC_USER /srv/apptier/webapps/ROOT.war
 ```
 
-Start (web tier first)
+#### Start (web tier first)
+
 ```
 sudo systemctl start tomcat-webtier; sleep 5
 sudo systemctl start tomcat-apptier; sleep 5
-systemctl is-active tomcat-webtier tomcat-apptier             # both must say active
+systemctl is-active tomcat-webtier tomcat-apptier          # both must say active
 sudo ss -ltnp | grep -E ':(9091|9092|9015|9016)'           # all four must listen
 ```
 
-Confirm push
+#### Confirm push
+
 ```
 sudo grep -i "push plugin" /srv/apptier/logs/*.$(date +%F).log
 curl -s http://127.0.0.1:9091/admin/allowlist              # real proof: prints the two paths
 ```
 
-Push manually if empty
+#### Push manually if empty
+
 ```
 curl -s http://127.0.0.1:9092/admin/publish
 ```
 
-Test A (expect app-tier text)
+#### Test A (expect app-tier text)
+
 ```
 curl -s http://127.0.0.1:9091/api/products
 curl -s http://127.0.0.1:9091/api/orders
 ```
 
-Test B (200 direct, 403 via gateway)
+#### Test B (200 direct, 403 via gateway)
+
 ```
 curl -si http://127.0.0.1:9092/api/internal/metrics | head -1
 curl -si http://127.0.0.1:9091/api/internal/metrics | head -1
 ```
 
-One shot test
+#### One shot test
+
 ```
 ./scripts/verify.sh
 ```
 
-Test C (dynamic control)
+#### Test C (dynamic control)
+
+The reloadable context set earlier lets the running app pick up the edited
+`web.xml`. Give the reload a moment before you publish.
+
 ```
 sudo sed -i 's#/api/products,/api/orders#/api/products#' /srv/apptier/webapps/ROOT/WEB-INF/web.xml
-sleep 2
+sleep 5
 curl -s http://127.0.0.1:9092/admin/publish
 curl -s http://127.0.0.1:9091/admin/allowlist
-curl -si http://127.0.0.1:9091/api/orders | head -1
+curl -si http://127.0.0.1:9091/api/orders | head -1       # expect 403
 ```
 
-Restore
+#### Restore
 ```
 sudo sed -i 's#<param-value>/api/products</param-value>#<param-value>/api/products,/api/orders</param-value>#' /srv/apptier/webapps/ROOT/WEB-INF/web.xml
-sleep 2
+sleep 5
 curl -s http://127.0.0.1:9092/admin/publish
 ```
 
-Teardown to avoid conflicts on your next lab exercises
+#### Teardown to avoid conflicts on your next lab exercises
+
 ```
 # Stop and disable the services
 sudo systemctl stop tomcat-webtier tomcat-apptier 2>/dev/null
@@ -283,11 +352,6 @@ sudo systemctl reset-failed tomcat-webtier tomcat-apptier 2>/dev/null
 
 # Remove the instance directories
 sudo rm -rf /srv/webtier /srv/apptier
-sudo a2disconf pushgate 2>/dev/null
-
-# Remove the Apache proxy config (only if you added it)
-sudo rm -f /etc/apache2/conf-available/pushgate.conf
-sudo systemctl reload apache2 2>/dev/null || true
 
 # Verify nothing is left
 systemctl list-units --all 'tomcat-webtier*' 'tomcat-apptier*' --no-pager
