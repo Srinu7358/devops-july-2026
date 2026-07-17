@@ -1162,6 +1162,7 @@ export ANTHROPIC_API_KEY=sk-ant-...              # your key
 # export ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # or any model on your account
 JENKINS_MOCK=1 python ask.py
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/7201832b-e12b-44d3-9550-da213859dec3" />
 
 You should see two `TOOL CALL` lines, their raw JSON results, then a final answer
 that stitches them together. Change the question to see the model pick different
