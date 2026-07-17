@@ -1413,4 +1413,14 @@ asyncio.run(main())
 <img width="1910" height="1128" alt="image" src="https://github.com/user-attachments/assets/fbbd2c5d-8be0-47e6-ad55-970c7989d8ef" />
 
 
-
+## MCP GuardRail Overview
+<pre>
+- is a rule enforced in code or credentials that limits what a tool can do, rather than trusting
+  the caller to behave
+- it matters here because the caller is often an AI agent choosing tools from text it read somewhere,
+  so you can't predict every call. 
+- what happens without one
+  - any exposed tool is fully live to whoever reaches it
+  - a model that reads "disable the prod pipeline" in some job description acts on it
+  - a stray client calls every tool including deletes
+</pre>
