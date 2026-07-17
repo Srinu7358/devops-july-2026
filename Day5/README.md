@@ -858,7 +858,7 @@ Verified on Python 3.12 with mcp 1.28, httpx 0.28, anthropic 0.117.
 
 ```
 python3 --version          # need 3.10 or newer
-node --version             # optional, only for the MCP Inspector step
+node --version             # optional, only for the MCP Inspector step - can be install with sudo apt install -y node
 ```
 
 #### Create the project and virtual environment
