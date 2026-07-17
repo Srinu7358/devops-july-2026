@@ -871,6 +871,8 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/c6d5c09a-f9f3-4b71-ad90-b38dfa8f9ff5" />
+
 
 #### Pin and install dependencies
 
