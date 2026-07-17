@@ -1076,6 +1076,7 @@ EOF
 ```
 JENKINS_MOCK=1 python client_probe.py
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/6db6e7c3-0ff9-476a-92f0-718adc90cbed" />
 
 Expected output:
 
