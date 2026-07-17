@@ -1424,3 +1424,17 @@ asyncio.run(main())
   - a model that reads "disable the prod pipeline" in some job description acts on it
   - a stray client calls every tool including deletes
 </pre>
+
+
+## Lab - XLR
+```
+sudo timedatectl set-ntp false
+sudo date -s "2020-07-17 09:00:00"
+
+```
+
+
+Accessing XLR from your lab web browser
+```
+http://localhost:5516
+```
