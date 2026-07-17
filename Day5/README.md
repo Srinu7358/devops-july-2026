@@ -841,68 +841,455 @@ docker logs --tail 15 proxy-app1
 - An MCP server exposes tools, resources, and prompts, an AI client connects over stdio or HTTP
 </pre>
 
-## Lab - Build and call an MCP server
+# Lab - Build and call an MCP server (read-only Jenkins tools)
 
-Install the MCP SDK
-```
-pip install mcp --break-system-packages
-python3 -c "import mcp.server.fastmcp as f; print('FastMCP:', hasattr(f,'FastMCP'))"
-# if pip complains about a debian-managed package (e.g. PyJWT), add:
-#   pip install mcp --break-system-packages --ignore-installed PyJWT
-```
+You build an MCP server that exposes two read-only tools, `get_build_status(job)`
+and `list_deployments(env)`, backed by GET-only Jenkins REST calls. You connect it
+to a client, ask a question that forces a tool call, inspect the exact call and
+response, then work through the guardrails that separate read tools from write
+tools.
 
-Get the lab files
-```
-mkdir -p ~/devops-july-2026/Day5 && cd ~/devops-july-2026/Day5
-# unzip the provided mcp-jenkins.zip here, or recreate server.py from the repo
-cd mcp-jenkins
-ls        # server.py  client_test.py  README.md
-```
+Everything runs on one host. Set `JENKINS_MOCK=1` to complete the whole lab with
+no live Jenkins. Swap in real credentials at the end to hit an actual server.
 
-Run the client, which spawns the server over stdio and calls the tools
+Verified on Python 3.12 with mcp 1.28, httpx 0.28, anthropic 0.117.
+
+#### Prerequisites
+
 ```
-python3 client_test.py
-# expect: tools discovered (get_build_status, list_deployments),
-#         then JSON responses. source = MOCK until you point at Jenkins.
+python3 --version          # need 3.10 or newer
+node --version             # optional, only for the MCP Inspector step
 ```
 
-Point at a live Jenkins (read-only API token)
+#### Create the project and virtual environment
+
 ```
-# Jenkins UI: click your name > Configure > API Token > Add new token
-export JENKINS_URL=http://localhost:8080
-export JENKINS_USER=jegan
-export JENKINS_TOKEN=116f89efaced1fadb55a989b7ed99fc080
-python3 client_test.py         # source flips from MOCK to jenkins
+mkdir -p ~/devops-july-2026/Day5/mcp-jenkins-lab
+cd ~/devops-july-2026/Day5/mcp-jenkins-lab
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
 ```
 
-Inspect the actual protocol calls
+#### Pin and install dependencies
+
 ```
-# the server logs each JSON-RPC request to stderr; run and watch:
-python3 client_test.py 2>server-protocol.log
-cat server-protocol.log
-# you'll see: ListToolsRequest, then CallToolRequest per tool call.
-# that is the client discovering the menu, then invoking a tool.
+cat > requirements.txt <<'EOF'
+mcp==1.28.1
+httpx==0.28.1
+anthropic==0.117.0
+google-genai==1.15.0
+EOF
+pip install -r requirements.txt
+
+# Confirm the core import works
+python -c "from mcp.server.fastmcp import FastMCP; import httpx; print('mcp + httpx OK')"
 ```
 
-Ask a question that forces a tool call (in a real AI client)
+#### Write the read-only Jenkins access layer
+
+Every call here is a GET. There is no path that triggers, cancels, or edits
+anything. `list_deployments` models "deployments to an env" as the build history
+of a conventionally named `deploy-<env>` job.
+
 ```
-# Wire the server into an AI MCP client (config in README.md), then ask:
-#   "Did the last build of web-tier-build pass?"   -> forces get_build_status
-#   "What are the last deployments to prod?"        -> forces list_deployments
-# The model cannot answer from training data (it's live CI state), so it must
-# call the tool. The client shows the tool name + arguments before running it.
+cat > jenkins_client.py <<'EOF'
+"""Read-only Jenkins access layer for the MCP server."""
+import os
+import httpx
+
+JENKINS_URL = os.environ.get("JENKINS_URL", "http://localhost:8080").rstrip("/")
+JENKINS_USER = os.environ.get("JENKINS_USER", "")
+JENKINS_TOKEN = os.environ.get("JENKINS_TOKEN", "")
+JENKINS_MOCK = os.environ.get("JENKINS_MOCK", "0") == "1"
+TIMEOUT = float(os.environ.get("JENKINS_TIMEOUT", "10"))
+
+_MOCK_BUILDS = {
+    "payments-api": {"number": 412, "result": "SUCCESS", "building": False,
+                     "url": "http://localhost:8080/job/payments-api/412/"},
+    "web-frontend": {"number": 98, "result": "FAILURE", "building": False,
+                     "url": "http://localhost:8080/job/web-frontend/98/"},
+}
+_MOCK_DEPLOYS = {
+    "staging": [
+        {"number": 55, "result": "SUCCESS", "timestamp": 1737000000000},
+        {"number": 54, "result": "SUCCESS", "timestamp": 1736900000000},
+    ],
+    "prod": [
+        {"number": 21, "result": "SUCCESS", "timestamp": 1737100000000},
+        {"number": 20, "result": "FAILURE", "timestamp": 1737050000000},
+    ],
+}
+
+def _auth():
+    if JENKINS_USER and JENKINS_TOKEN:
+        return (JENKINS_USER, JENKINS_TOKEN)
+    return None
+
+def _get(path: str, params: dict) -> dict:
+    url = f"{JENKINS_URL}{path}"
+    with httpx.Client(timeout=TIMEOUT, auth=_auth()) as c:
+        r = c.get(url, params=params)
+        r.raise_for_status()
+        return r.json()
+
+def build_status(job: str) -> dict:
+    """Last build result for a job. Read-only."""
+    if JENKINS_MOCK:
+        data = _MOCK_BUILDS.get(job)
+        if data is None:
+            return {"job": job, "found": False, "reason": "unknown job (mock)"}
+        return {"job": job, "found": True, **data}
+    data = _get(f"/job/{job}/lastBuild/api/json",
+                {"tree": "number,result,building,url"})
+    return {
+        "job": job, "found": True,
+        "number": data.get("number"),
+        "result": data.get("result") or ("RUNNING" if data.get("building") else "UNKNOWN"),
+        "building": data.get("building", False),
+        "url": data.get("url"),
+    }
+
+def deployments(env: str, limit: int = 5) -> dict:
+    """Recent builds of the deploy-<env> pipeline. Read-only."""
+    if JENKINS_MOCK:
+        rows = _MOCK_DEPLOYS.get(env, [])[:limit]
+        return {"env": env, "job": f"deploy-{env}", "count": len(rows), "deployments": rows}
+    data = _get(f"/job/deploy-{env}/api/json",
+                {"tree": f"builds[number,result,timestamp,url]{{0,{limit}}}"})
+    return {
+        "env": env, "job": f"deploy-{env}",
+        "count": len(data.get("builds", [])),
+        "deployments": data.get("builds", []),
+    }
+EOF
 ```
 
-Confirm read-only by design
+#### Smoke-test the Jenkins layer on its own (before any MCP)
+
 ```
-# the server only issues HTTP GET to Jenkins. Prove it:
-grep -n "method=" server.py           # method="GET" only
-grep -ni "deploy\|build/.*/build\|POST" server.py | grep -i tool || echo "no write/deploy tool exposed"
+JENKINS_MOCK=1 python -c "import jenkins_client as jk; print(jk.build_status('payments-api')); print(jk.deployments('prod'))"
+# Expect: payments-api SUCCESS #412, and two prod deploy rows
 ```
 
-Teardown
+#### Write the MCP server
+
+Two tools, both read-only. The disabled `trigger_deploy` block at the bottom is
+the write-tool reference you discuss in the guardrails section.
+
 ```
-unset JENKINS_URL JENKINS_USER JENKINS_TOKEN
-# nothing installed system-wide except the pip package; remove if you want:
-# pip uninstall mcp --break-system-packages
+cat > server.py <<'EOF'
+"""MCP server exposing read-only Jenkins tools over stdio."""
+import json
+from mcp.server.fastmcp import FastMCP
+import jenkins_client as jk
+
+mcp = FastMCP("jenkins-readonly")
+
+@mcp.tool()
+def get_build_status(job: str) -> str:
+    """Get the status of the most recent build for a Jenkins job.
+
+    Args:
+        job: The Jenkins job name, e.g. "payments-api".
+    Returns:
+        JSON with the build number, result (SUCCESS/FAILURE/RUNNING), and URL.
+    """
+    return json.dumps(jk.build_status(job))
+
+@mcp.tool()
+def list_deployments(env: str) -> str:
+    """List recent deployments to an environment.
+
+    Args:
+        env: Environment name, e.g. "staging" or "prod".
+    Returns:
+        JSON with the deploy job name and a list of recent deploy builds.
+    """
+    return json.dumps(jk.deployments(env))
+
+# ---------------------------------------------------------------------------
+# WRITE TOOL - intentionally DISABLED. Uncommenting exposes an action that
+# changes Jenkins state. Never ship it without the approval gate shown.
+#
+# @mcp.tool()
+# def trigger_deploy(env: str, confirm_token: str = "") -> str:
+#     """Trigger a deploy. Requires an approval token from a human."""
+#     expected = os.environ.get("DEPLOY_APPROVAL_TOKEN", "")
+#     if not expected or confirm_token != expected:
+#         return json.dumps({"status": "blocked", "reason": "approval required"})
+#     # ... only here would you POST to /job/deploy-<env>/build ...
+#     return json.dumps({"status": "queued", "env": env})
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    mcp.run()  # stdio transport by default
+EOF
+```
+
+#### Write a pure MCP client probe (no LLM, no API key)
+
+This proves the wiring and shows the raw tool call and response.
+
+Note: the MCP stdio client passes only a safe subset of environment variables to
+the server child. You must forward the `JENKINS_*` vars explicitly, or the server
+never sees `JENKINS_MOCK` and tries to reach a real Jenkins.
+
+```
+cat > client_probe.py <<'EOF'
+"""Connect to server.py over stdio, list tools, call each once."""
+import asyncio, os
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+_fwd = {k: v for k, v in os.environ.items() if k.startswith("JENKINS_")}
+params = StdioServerParameters(command="python", args=["server.py"], env=_fwd or None)
+
+async def main():
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            tools = await session.list_tools()
+            print("== TOOLS ADVERTISED ==")
+            for t in tools.tools:
+                print(f"  {t.name}: {t.description.splitlines()[0]}")
+            print("\n== CALL get_build_status(job='payments-api') ==")
+            r1 = await session.call_tool("get_build_status", {"job": "payments-api"})
+            print(r1.content[0].text)
+            print("\n== CALL list_deployments(env='prod') ==")
+            r2 = await session.call_tool("list_deployments", {"env": "prod"})
+            print(r2.content[0].text)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+EOF
+```
+
+#### Run the probe (expect real tool output)
+
+```
+JENKINS_MOCK=1 python client_probe.py
+```
+
+Expected output:
+
+```
+== TOOLS ADVERTISED ==
+  get_build_status: Get the status of the most recent build for a Jenkins job.
+  list_deployments: List recent deployments to an environment.
+
+== CALL get_build_status(job='payments-api') ==
+{"job": "payments-api", "found": true, "number": 412, "result": "SUCCESS", ...}
+
+== CALL list_deployments(env='prod') ==
+{"env": "prod", "job": "deploy-prod", "count": 2, "deployments": [...]}
+```
+
+#### Inspect the server with MCP Inspector (optional, needs Node)
+
+The Inspector is a browser UI that lists your tools and lets you call them by
+hand. Pass the env through so mock mode reaches the server.
+
+```
+JENKINS_MOCK=1 npx @modelcontextprotocol/inspector python server.py
+# Open the printed localhost URL, pick a tool, fill the arg, click Call.
+```
+
+#### Connect an LLM client that forces a tool call (Anthropic)
+
+This is the "ask a question that forces a tool call" step. The client pulls the
+tool schemas from MCP, hands them to Claude, and executes whatever tool Claude
+chooses, printing the full trace.
+
+```
+cat > ask.py <<'EOF'
+import asyncio, json, os, sys
+from anthropic import Anthropic
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+_fwd = {k: v for k, v in os.environ.items() if k.startswith("JENKINS_")}
+params = StdioServerParameters(command="python", args=["server.py"], env=_fwd or None)
+
+async def run(question: str):
+    client = Anthropic()  # reads ANTHROPIC_API_KEY
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            listed = await session.list_tools()
+            tools = [{"name": t.name, "description": t.description,
+                      "input_schema": t.inputSchema} for t in listed.tools]
+            messages = [{"role": "user", "content": question}]
+            while True:
+                resp = client.messages.create(model=MODEL, max_tokens=1024,
+                                               tools=tools, messages=messages)
+                messages.append({"role": "assistant", "content": resp.content})
+                tool_uses = [b for b in resp.content if b.type == "tool_use"]
+                if not tool_uses:
+                    text = "".join(b.text for b in resp.content if b.type == "text")
+                    print("\n== FINAL ANSWER ==\n" + text)
+                    return
+                results = []
+                for tu in tool_uses:
+                    print(f"\n== TOOL CALL == {tu.name}({json.dumps(tu.input)})")
+                    out = await session.call_tool(tu.name, tu.input)
+                    raw = out.content[0].text
+                    print(f"== TOOL RESULT ==\n{raw}")
+                    results.append({"type": "tool_result", "tool_use_id": tu.id,
+                                    "content": raw})
+                messages.append({"role": "user", "content": results})
+
+if __name__ == "__main__":
+    q = " ".join(sys.argv[1:]) or "Did the last build of payments-api pass, and what happened in the two most recent prod deployments?"
+    print(f"QUESTION: {q}")
+    asyncio.run(run(q))
+EOF
+```
+
+Run it. The question is phrased so a plain text answer is impossible without
+calling both tools.
+
+```
+export ANTHROPIC_API_KEY=sk-ant-...              # your key
+# export ANTHROPIC_MODEL=claude-haiku-4-5-20251001   # or any model on your account
+JENKINS_MOCK=1 python ask.py
+```
+
+You should see two `TOOL CALL` lines, their raw JSON results, then a final answer
+that stitches them together. Change the question to see the model pick different
+tools:
+
+```
+JENKINS_MOCK=1 python ask.py "Is web-frontend green right now?"
+```
+
+#### Gemini free-tier alternative (no paid key)
+
+For trainees without an Anthropic key. Get a free key at aistudio.google.com. The
+google-genai SDK can take the MCP session directly as a tool.
+
+```
+cat > ask_gemini.py <<'EOF'
+import asyncio, os, sys
+from google import genai
+from google.genai import types
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+_fwd = {k: v for k, v in os.environ.items() if k.startswith("JENKINS_")}
+params = StdioServerParameters(command="python", args=["server.py"], env=_fwd or None)
+
+async def run(question: str):
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    async with stdio_client(params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            resp = await client.aio.models.generate_content(
+                model=MODEL, contents=question,
+                config=types.GenerateContentConfig(tools=[session], temperature=0))
+            print("\n== FINAL ANSWER ==\n" + resp.text)
+
+if __name__ == "__main__":
+    q = " ".join(sys.argv[1:]) or "Did the last build of payments-api pass, and what happened in the two most recent prod deployments?"
+    print(f"QUESTION: {q}")
+    asyncio.run(run(q))
+EOF
+
+export GEMINI_API_KEY=...                        # free key
+JENKINS_MOCK=1 python ask_gemini.py
+```
+
+## Optional: register the server in Claude Desktop
+
+Add this to the Claude Desktop config, then restart it. The tools show up under
+the connectors icon. Use absolute paths.
+
+```
+# macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
+# Linux: ~/.config/Claude/claude_desktop_config.json
+cat <<'EOF'
+{
+  "mcpServers": {
+    "jenkins-readonly": {
+      "command": "/ABSOLUTE/PATH/.venv/bin/python",
+      "args": ["/ABSOLUTE/PATH/server.py"],
+      "env": { "JENKINS_MOCK": "1" }
+    }
+  }
+}
+EOF
+```
+
+#### Point at a real Jenkins (when you are ready)
+
+Create a read-only API token in Jenkins (user menu, Configure, API Token). Give
+that user only Overall/Read and Job/Read in matrix security. Then:
+
+```
+export JENKINS_URL="https://jenkins.example.com"
+export JENKINS_USER="ci-reader"
+export JENKINS_TOKEN="11xxxxxxxxxxxxxxxxxxxxxxxxx"
+unset JENKINS_MOCK
+python client_probe.py     # now hits the real server, still GET-only
+```
+
+Notes:
+1. `list_deployments` expects jobs named `deploy-staging`, `deploy-prod`, etc.
+   Rename the convention in `jenkins_client.py` if yours differ.
+2. If you see 403, the token user lacks Job/Read on that job. Fix permissions,
+   do not add write scope.
+3. Keep the token out of shell history: put the exports in a file you `source`
+   with `chmod 600`, not inline.
+
+#### Guardrails discussion (run this with the class)
+
+Read-only vs write. Both tools here are GET-only and safe to auto-run. A write
+tool (`trigger_deploy`, cancel, delete) changes state and must never auto-execute
+from a model's decision alone. Show the disabled block in `server.py`: it returns
+`blocked` unless a human supplies the current approval token.
+
+```
+# Demonstrate the gate logic without exposing the tool:
+python - <<'EOF'
+import os
+def trigger_deploy(env, confirm_token=""):
+    expected = os.environ.get("DEPLOY_APPROVAL_TOKEN", "")
+    if not expected or confirm_token != expected:
+        return {"status": "blocked", "reason": "approval required"}
+    return {"status": "queued", "env": env}
+
+print(trigger_deploy("prod"))                       # blocked, no token set
+os.environ["DEPLOY_APPROVAL_TOKEN"] = "abc123"
+print(trigger_deploy("prod", "wrong"))              # blocked, wrong token
+print(trigger_deploy("prod", "abc123"))             # queued, human approved
+EOF
+```
+
+Take away points
+1. Least privilege at the source. The Jenkins token is read-only, so even a bug
+   or prompt injection in the model cannot deploy. The safest write tool is the
+   one that does not exist.
+2. Authentication lives in the server, never in the model. The model sees tool
+   names and schemas, not credentials. Rotate the token like any other secret.
+3. Approval gates for any state change. A write tool returns "blocked" and hands
+   back what approval is needed. A human (not the model) supplies the token out
+   of band. The model can request a deploy but cannot grant it.
+4. Transport and exposure. stdio keeps the server local to the client. If you move
+   to HTTP (`mcp.run(transport="streamable-http")`), you now need network auth,
+   TLS, and access control in front of it.
+5. Audit. Log every tool call with its arguments and caller. Read calls are cheap
+   to log and invaluable when something looks wrong.
+
+#### Teardown
+
+```
+# Nothing was installed system-wide and no Jenkins state was changed.
+deactivate 2>/dev/null || true
+cd ~
+rm -rf ~/devops-july-2026/Day5/mcp-jenkins-lab   # only if you want it gone
+
+# If you added the Claude Desktop entry, remove the jenkins-readonly block
+# from claude_desktop_config.json and restart Claude Desktop.
 ```
