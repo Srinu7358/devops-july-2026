@@ -888,6 +888,8 @@ pip install -r requirements.txt
 # Confirm the core import works
 python -c "from mcp.server.fastmcp import FastMCP; import httpx; print('mcp + httpx OK')"
 ```
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/083589d5-3b81-471c-a2b0-8f1b99a60711" />
+<img width="1920" height="1200" alt="image" src="https://github.com/user-attachments/assets/ef2041f6-26a9-462a-8833-afb7485ef6d2" />
 
 #### Write the read-only Jenkins access layer
 
